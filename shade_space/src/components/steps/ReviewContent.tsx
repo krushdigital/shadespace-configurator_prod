@@ -40,6 +40,7 @@ interface ReviewContentProps {
   isMobile?: boolean;
   handleCancelEmailInput: () => void;
   canvasRef: React.RefObject<InteractiveMeasurementCanvasRef>;
+  loading: boolean
 }
 
 export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
@@ -65,6 +66,7 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
   isMobile = false,
   handleCancelEmailInput,
   canvasRef,
+  loading
 }, ref) => {
   const [highlightedMeasurement, setHighlightedMeasurement] = useState<string | null>(null);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
@@ -264,50 +266,50 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
         }
       }
 
-      if(canvasImageUrl){
+      if (canvasImageUrl) {
         const orderData = {
-        // Config state
-        fabricType: config.fabricType,
-        fabricColor: config.fabricColor,
-        edgeType: config.edgeType,
-        corners: config.corners,
-        unit: config.unit,
-        measurementOption: config.measurementOption,
-        currency: config.currency,
-        measurements: config.measurements,
-        points: config.points,
-        fixingHeights: config.fixingHeights,
-        fixingTypes: config.fixingTypes,
-        eyeOrientations: config.eyeOrientations,
-        diagonalsInitiallyProvided: config.diagonalsInitiallyProvided,
+          // Config state
+          fabricType: config.fabricType,
+          fabricColor: config.fabricColor,
+          edgeType: config.edgeType,
+          corners: config.corners,
+          unit: config.unit,
+          measurementOption: config.measurementOption,
+          currency: config.currency,
+          measurements: config.measurements,
+          points: config.points,
+          fixingHeights: config.fixingHeights,
+          fixingTypes: config.fixingTypes,
+          eyeOrientations: config.eyeOrientations,
+          diagonalsInitiallyProvided: config.diagonalsInitiallyProvided,
 
-        // Calculations
-        area: calculations.area,
-        perimeter: calculations.perimeter,
-        totalPrice: calculations.totalPrice,
-        webbingWidth: calculations.webbingWidth,
-        wireThickness: calculations.wireThickness,
+          // Calculations
+          area: calculations.area,
+          perimeter: calculations.perimeter,
+          totalPrice: calculations.totalPrice,
+          webbingWidth: calculations.webbingWidth,
+          wireThickness: calculations.wireThickness,
 
-        // Selected items
-        selectedFabric,
-        selectedColor,
+          // Selected items
+          selectedFabric,
+          selectedColor,
 
-        // Canvas image URL from Shopify
-        canvasImageUrl, // This will be the Shopify URL or null
+          // Canvas image URL from Shopify
+          canvasImageUrl, // This will be the Shopify URL or null
 
-        // Acknowledgments
-        acknowledgments,
+          // Acknowledgments
+          acknowledgments,
 
-        // Additional info from image
-        freeShipping: true,
-        noHiddenCosts: true,
-        premiumQuality: true,
+          // Additional info from image
+          freeShipping: true,
+          noHiddenCosts: true,
+          premiumQuality: true,
 
-        // Timestamp
-        createdAt: new Date().toISOString()
-      }
+          // Timestamp
+          createdAt: new Date().toISOString()
+        }
 
-      handleAddToCart(orderData);
+        handleAddToCart(orderData);
       }
     }
   };
@@ -784,21 +786,23 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
 
             <Button
               size={isMobile ? "lg" : "md"}
-              className={`flex-1 transition-all duration-200 ${!canAddToCart
+              className={`flex-1 transition-all duration-200 ${!canAddToCart || loading
                 ? 'opacity-50 cursor-not-allowed bg-gray-400 hover:bg-gray-400 text-gray-600'
                 : ''
                 }`}
               onClick={handleAttemptAddToCart}
+              disabled={!canAddToCart || loading}
             >
-              {canAddToCart
-                ? `ADD TO CART - ${formatCurrency(calculations.totalPrice, config.currency)}`
-                : (
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs sm:text-sm">Complete above requirements to</span>
-                    <span className="text-base font-semibold">ADD TO CART</span>
-                  </div>
-                )
-              }
+              {loading ? (
+                'ADDING TO CART...'
+              ) : canAddToCart ? (
+                `ADD TO CART - ${formatCurrency(calculations.totalPrice, config.currency)}`
+              ) : (
+                <div className="flex flex-col items-center">
+                  <span className="text-xs sm:text-sm">Complete above requirements to</span>
+                  <span className="text-base font-semibold">ADD TO CART</span>
+                </div>
+              )}
             </Button>
           </div>
         </div>

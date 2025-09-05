@@ -49,6 +49,7 @@ export function ShadeConfigurator() {
   const [typoSuggestions, setTypoSuggestions] = useState<{ [key: string]: number }>({});
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const reviewContentRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false)
 
   // Pricing and order state (lifted from ReviewContent)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -288,6 +289,7 @@ export function ShadeConfigurator() {
 
   const handleAddToCart = async (orderData: AddToCartOrderData): Promise<void> => {
     try {
+      setLoading(true)
 
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
         method: 'POST',
@@ -302,7 +304,7 @@ export function ShadeConfigurator() {
       const { success, product, error } = data
 
       if (success && product) {
-        console.log('product: ', product)
+        console.log('product created...')
 
         const metafieldProperties = {};
         interface MetafieldNode {
@@ -337,18 +339,24 @@ export function ShadeConfigurator() {
           }]
         };
 
-        fetch('/cart/add.js', {
+        const response = await fetch('/cart/add.js', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         })
 
+        if (response.ok) {
+          window.location.href = '/cart'
+        }
+
       } else if (!success && error) {
         console.log(error);
+        setLoading(false);
       }
 
     } catch (error) {
       console.error('Error adding to cart:', error);
+      setLoading(false);
     }
   };
 
@@ -872,6 +880,7 @@ export function ShadeConfigurator() {
                   highlightedMeasurement={highlightedMeasurement}
                   canvasRef={canvasRef}
                   ref={index === 6 ? reviewContentRef : undefined}
+                  loading={loading}
                 />
               </AccordionStep>
             );
