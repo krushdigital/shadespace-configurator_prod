@@ -1,0 +1,135 @@
+import { Fabric } from '../types';
+
+export const FABRICS: Fabric[] = [
+  {
+    id: 'monotec370',
+    label: 'Monotec 370',
+    description: 'Our premium knitted HDPE fabric, offering exceptional durability & strength',
+    detailedDescription: 'Monotec 370 is our flagship knitted HDPE fabric, engineered for superior performance and longevity. Its unique monofilament construction provides unparalleled strength and UV protection, making it the ultimate choice for discerning customers seeking the best in shade solutions. While a premium investment, its extended warranty and robust design ensure lasting value and peace of mind.',
+    benefits: [
+      'Superior UV protection',
+      'Excellent airflow and breathability',
+      'Lightweight yet incredibly strong',
+      'Extra wide fabric = less joins',
+      'Easy to clean and maintain',
+      'Available in vibrant, fade-resistant colors'
+    ],
+    bestFor: [
+      'Both Commercial & Residential applications',
+      'Pool areas, patios & decks',
+      'Playgrounds and recreational areas',
+      'Locations with moderate to high wind exposure'
+    ],
+    uvProtection: '95%+',
+    pricePerSqm: 85,
+    warrantyYears: 15,
+    madeIn: 'Australia',
+    weightPerSqm: 370,
+    colors: [
+      { name: 'Koonunga Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Koonunga_Green.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 86.1 },
+      { name: 'Domino Black', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Domino_Black.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 88.4 },
+      { name: 'Sheba Navy', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Sheba_Dark_Blue.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 86.9 },
+      { name: 'Lime Fizz', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Lime_Fizz.webp?v=1755468763', textColor: '#000000', shadeFactor: 84.3 },
+      { name: 'Candy Red', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_candy_Red.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 81.9 },
+      { name: 'Marrocan Terracotta', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Marrocan_Terracotta.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 82.6 },
+      { name: 'Bundena Blue', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Bundena_Blue.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 83.2 },
+      { name: 'Graphite Grey', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Graphite_Charcoal.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 87.0 },
+      { name: 'Karloo Sand', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Karloo_Sand.webp?v=1755468763', textColor: '#000000', shadeFactor: 72.5 },
+      { name: 'Sherbet Orange', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Sherbet_Orange.webp?v=1755468763', textColor: '#000000', shadeFactor: 79.4 },
+      { name: 'Bubblegum Pink', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Bubblegum_Pink.webp?v=1755468763', textColor: '#000000', shadeFactor: 83.6 },
+      { name: 'Mellow Haze Yellow', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Mellow_Haze_Yellow.webp?v=1755468763', textColor: '#000000', shadeFactor: 74.7 },
+      { name: 'Jazzberry Purple', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Jazzberry_Purple.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 84.7 },
+      { name: 'Abaroo Red', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Abaroo_Red.webp?v=1755468763', textColor: '#FFFFFF', shadeFactor: 83.1 },
+      { name: 'Chino Cream', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Monotec_-_Chino_Cream.webp?v=1755468763', textColor: '#000000', shadeFactor: 70.9 },
+      { name: 'Titanium', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Titanium_-_front.jpg?v=1756426399', textColor: '#FFFFFF', shadeFactor: 84.5 }
+    ]
+  },
+  {
+    id: 'extrablock330',
+    label: 'ExtraBlock 330',
+    description: 'A robust, commercial-grade fabric with excellent UV and fire-rated properties',
+    detailedDescription: 'ExtraBlock 330 is our versatile, commercial-grade knitted HDPE fabric, certified to Australian fire safety standards. It strikes an excellent balance between high UV protection, durability, and cost-effectiveness, making it a popular mid-range choice for a wide array of applications. Its superior color retention and tear resistance ensure a long-lasting and attractive shade solution.',
+    benefits: [
+      'Fire-rated to Australian standards (ALNET certified)',
+      'Lighter weight yet still commercial grade durability',
+      'Superior color retention',
+      'Excellent tear and puncture resistance',
+      'Suitable for high-wind environments',
+      'Low maintenance requirements'
+    ],
+    bestFor: [
+      'Residential & Commercial applications',
+      'Schools and childcare centers',
+      'Restaurants and cafes',
+      'Public spaces and parks',
+      'Areas requiring fire-rated materials',
+    ],
+    uvProtection: '98%+',
+    pricePerSqm: 115,
+    warrantyYears: 10,
+    madeIn: 'South Africa',
+    weightPerSqm: 330,
+    colors: [
+      { name: 'Pearl Onyx', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Pearl_Onyx.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 86 },
+      { name: 'Chocolate', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Chocolate.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 93 },
+      { name: 'Beige', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Beige.webp?v=1755468825', textColor: '#000000', shadeFactor: 87 },
+      { name: 'Charcoal', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Charcoal.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 92 },
+      { name: 'Persian Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Persian_Green.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 91 },
+      { name: 'Latte', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Latte.webp?v=1755468825', textColor: '#000000', shadeFactor: 80 },
+      { name: 'Yellow', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Yellow.webp?v=1755468825', textColor: '#000000', shadeFactor: 75 },
+      { name: 'Navy', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Navy.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 95 },
+      { name: 'Dove Blue', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Dove_Blue.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 90 },
+      { name: 'Cream', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Cream.webp?v=1755468825', textColor: '#000000', shadeFactor: 81 },
+      { name: 'Lime Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Lime_Green.webp?v=1755468825', textColor: '#000000', shadeFactor: 86 },
+      { name: 'Forest Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Forest_Green.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 93 },
+      { name: 'Olive Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Olive_Green.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 96 },
+      { name: 'Silver', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Silver.webp?v=1755468825', textColor: '#000000', shadeFactor: 98 },
+      { name: 'Sunblaze', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Sunblaze.webp?v=1755468825', textColor: '#000000', shadeFactor: 95 },
+      { name: 'Midnight', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Midnight.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 97 },
+      { name: 'Mint Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Mint_Green.webp?v=1755468825', textColor: '#000000', shadeFactor: 93 },
+      { name: 'Oxide Red', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Oxide_Red.webp?v=1755468825', textColor: '#FFFFFF', shadeFactor: 88 },
+      { name: 'True Blue', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_True_Blue.webp?v=1755468824', textColor: '#FFFFFF', shadeFactor: 95 },
+      { name: 'Purple', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Purple.webp?v=1755468824', textColor: '#FFFFFF', shadeFactor: 88 },
+      { name: 'Red', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Extrablock_-_Red.webp?v=1755468824', textColor: '#FFFFFF', shadeFactor: 88 }
+    ]
+  },
+  {
+    id: 'shadetec320',
+    label: 'Shadetec 320',
+    description: 'High quality knitted fabric with high strength and great aesthetics',
+    detailedDescription: 'Shadetec 320 is a high-quality knitted HDPE fabric that offers reliable UV protection and good durability at a more accessible price point. It\'s an excellent entry-level option for those seeking a dependable shade solution without compromising on quality. Its refined appearance and good tear resistance make it a smart choice for residential and light commercial use.',
+    benefits: [
+      'High-quality knitted construction',
+      'Excellent strength & dimensional stability',
+      'Refined, upscale appearance',
+      'Robust & tear resistant',
+      'Excellent color fastness',
+    ],
+    bestFor: [
+      'Residential applications',
+      'Light commercial installations',
+      'Budget-conscious projects',
+    ],
+    uvProtection: '90%+',
+    pricePerSqm: 95,
+    warrantyYears: 10,
+    madeIn: 'South Korea',
+    weightPerSqm: 320,
+    colors: [
+      { name: 'Canyon Tan', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Canyon_tan.webp?v=1755468808', textColor: '#000000', shadeFactor: 92 },
+      { name: 'Desert Sand', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Desert_sand.webp?v=1755468808', textColor: '#000000', shadeFactor: 87 },
+      { name: 'Deep Sea Navy', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Deep_Sea_navy.webp?v=1755468808', textColor: '#FFFFFF', shadeFactor: 96 },
+      { name: 'Forest Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Forest_green.webp?v=1755468808', textColor: '#FFFFFF', shadeFactor: 95 },
+      { name: 'Coastal Cream', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Coastal_cream.webp?v=1755468808', textColor: '#000000', shadeFactor: 77 },
+      { name: 'Arctic White', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Artic_white.webp?v=1755468808', textColor: '#000000', shadeFactor: 83.2 },
+      { name: 'Meadow Green', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Meadow_green.webp?v=1755468808', textColor: '#FFFFFF', shadeFactor: 91 },
+      { name: 'River Sand', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_River_sand.webp?v=1755468808', textColor: '#000000', shadeFactor: 90 },
+      { name: 'Ocean Blue', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Ocean_blue.webp?v=1755468808', textColor: '#FFFFFF', shadeFactor: 93 },
+      { name: 'Sunshine Yellow', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Sunshine_yellow.webp?v=1755468807', textColor: '#000000', shadeFactor: 80 },
+      { name: 'Alpine Silver', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Alpine_Silver.webp?v=1755468808', textColor: '#000000', shadeFactor: 94 },
+      { name: 'Charcoal Grey', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Charcoal_Grey.webp?v=1755468807', textColor: '#FFFFFF', shadeFactor: 95 },
+      { name: 'Carbon Black', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Carbon_black.webp?v=1755468807', textColor: '#FFFFFF', shadeFactor: 97 },
+      { name: 'Lava Red', imageUrl: 'https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Shadetec_-_Lava_red.webp?v=1755468807', textColor: '#FFFFFF', shadeFactor: 91 }
+    ]
+  }
+];
