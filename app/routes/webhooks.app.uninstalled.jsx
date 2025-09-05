@@ -1,5 +1,5 @@
 import { authenticate } from "../shopify.server";
-import { ShopifySession } from "../model";
+import ShopifySession  from "../model/shopifySession";
 
 export const action = async ({ request }) => {
   const { shop, session, topic } = await authenticate.webhook(request);

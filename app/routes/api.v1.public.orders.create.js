@@ -1,4 +1,4 @@
-import { ShopifySession } from '../model/shopifySession'
+import  ShopifySession  from '../model/shopifySession'
 
 export const action = async ({ request }) => {
     try {
