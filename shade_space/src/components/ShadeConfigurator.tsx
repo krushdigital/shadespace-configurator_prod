@@ -289,6 +289,7 @@ export function ShadeConfigurator() {
 
   const handleAddToCart = async (orderData: AddToCartOrderData): Promise<void> => {
     try {
+      console.log('product being created. Add to cart');
       setLoading(true)
 
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
@@ -304,7 +305,7 @@ export function ShadeConfigurator() {
       const { success, product, error } = data
 
       if (success && product) {
-        console.log('product created...')
+        console.log('product created... Add to cart')
 
         const metafieldProperties = {};
         interface MetafieldNode {
@@ -339,6 +340,8 @@ export function ShadeConfigurator() {
           }]
         };
 
+        console.log('Add to cart in progress');
+
         const response = await fetch('/cart/add.js', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -346,6 +349,7 @@ export function ShadeConfigurator() {
         })
 
         if (response.ok) {
+          console.log('Added to cart');
           window.location.href = '/cart'
         }
 
