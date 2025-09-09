@@ -7,32 +7,37 @@ export const action = async ({ request }) => {
         const shadeData = await request.json();
 
         const {
-            fabricType,
             fabricColor,
             edgeType,
             corners,
-            unit,
-            currency,
-            measurements,
             area,
             perimeter,
             totalPrice,
             selectedFabric,
             selectedColor,
             canvasImageUrl,
-            warranty,
             fixingHeights,
             fixingTypes,
             eyeOrientations,
+            // Add these missing variables
+            edgeMeasurements = {},
+            diagonalMeasurementsObj = {},
+            anchorPointMeasurements = {},
+            Fabric_Type,
+            Edge_Type,
+            Wire_Thickness,
+            Area,
+            Perimeter,
+            createdAt
         } = shadeData;
 
         const metafieldDefinitions = [
             {
-                name: "Fabric Type",
+                name: "Fabric Material",
                 namespace: "shade_sail",
-                key: "fabric_type",
+                key: "fabric_material",
                 type: "single_line_text_field",
-                description: "The type of fabric used for the shade sail",
+                description: "The material of the fabric used for the shade sail",
             },
             {
                 name: "Fabric Color",
@@ -42,11 +47,32 @@ export const action = async ({ request }) => {
                 description: "The color of the fabric",
             },
             {
+                name: "Fabric Certification Type",
+                namespace: "shade_sail",
+                key: "fabric_certification_type",
+                type: "single_line_text_field",
+                description: "Type of fabric certification (FR Certified or Not FR Certified)",
+            },
+            {
+                name: "Shade Factor",
+                namespace: "shade_sail",
+                key: "shade_factor",
+                type: "number_decimal",
+                description: "Percentage of shade provided",
+            },
+            {
                 name: "Edge Type",
                 namespace: "shade_sail",
                 key: "edge_type",
                 type: "single_line_text_field",
                 description: "The type of edge finishing",
+            },
+            {
+                name: "Wire Thickness",
+                namespace: "shade_sail",
+                key: "wire_thickness",
+                type: "single_line_text_field",
+                description: "Thickness of the wire used",
             },
             {
                 name: "Corners",
@@ -59,22 +85,43 @@ export const action = async ({ request }) => {
                 name: "Area",
                 namespace: "shade_sail",
                 key: "area",
-                type: "number_decimal",
-                description: "Total area of the shade sail",
+                type: "single_line_text_field",
+                description: "Total area of the shade sail with unit",
             },
             {
                 name: "Perimeter",
                 namespace: "shade_sail",
                 key: "perimeter",
-                type: "number_decimal",
-                description: "Total perimeter of the shade sail",
+                type: "single_line_text_field",
+                description: "Total perimeter of the shade sail with unit",
             },
             {
-                name: "Measurements",
+                name: "Canvas Image URL",
                 namespace: "shade_sail",
-                key: "measurements",
+                key: "canvas_image_url",
+                type: "url",
+                description: "Technical drawing of the shade sail",
+            },
+            {
+                name: "Edge Measurements",
+                namespace: "shade_sail",
+                key: "edge_measurements",
                 type: "json",
-                description: "Detailed measurements of the shade sail",
+                description: "Detailed edge measurements of the shade sail",
+            },
+            {
+                name: "Diagonal Measurements",
+                namespace: "shade_sail",
+                key: "diagonal_measurements",
+                type: "json",
+                description: "Detailed diagonal measurements of the shade sail",
+            },
+            {
+                name: "Anchor Point Measurements",
+                namespace: "shade_sail",
+                key: "anchor_point_measurements",
+                type: "json",
+                description: "Detailed anchor point height measurements",
             },
             {
                 name: "Fixing Heights",
@@ -105,19 +152,25 @@ export const action = async ({ request }) => {
                 description: "UV protection level",
             },
             {
-                name: "Shade Factor",
+                name: "Warranty Years",
                 namespace: "shade_sail",
-                key: "shade_factor",
-                type: "number_decimal",
-                description: "Percentage of shade provided",
+                key: "warranty_years",
+                type: "number_integer",
+                description: "Warranty period in years",
             },
-
             {
                 name: "Weight per Square Meter",
                 namespace: "shade_sail",
                 key: "weight_per_sqm",
                 type: "number_integer",
                 description: "Fabric weight per square meter",
+            },
+            {
+                name: "Created At",
+                namespace: "shade_sail",
+                key: "created_at",
+                type: "date_time",
+                description: "When the custom product was created",
             },
         ];
 
@@ -149,7 +202,7 @@ export const action = async ({ request }) => {
                             name: definition.name,
                             namespace: definition.namespace,
                             key: definition.key,
-                            type: definition.type.toUpperCase(),
+                            type: definition.type,
                             ownerType: "PRODUCT",
                             description: definition.description,
                         },
@@ -223,8 +276,8 @@ export const action = async ({ request }) => {
         const metafields = [
             {
                 namespace: "shade_sail",
-                key: "fabric_type",
-                value: fabricType,
+                key: "fabric_material",
+                value: selectedFabric?.label || "",
                 type: "single_line_text_field",
             },
             {
@@ -235,8 +288,26 @@ export const action = async ({ request }) => {
             },
             {
                 namespace: "shade_sail",
+                key: "fabric_certification_type",
+                value: Fabric_Type || "",
+                type: "single_line_text_field",
+            },
+            {
+                namespace: "shade_sail",
+                key: "shade_factor",
+                value: selectedColor?.shadeFactor?.toString() || "",
+                type: "number_decimal",
+            },
+            {
+                namespace: "shade_sail",
                 key: "edge_type",
-                value: edgeType,
+                value: Edge_Type || "",
+                type: "single_line_text_field",
+            },
+            {
+                namespace: "shade_sail",
+                key: "wire_thickness",
+                value: Wire_Thickness || "",
                 type: "single_line_text_field",
             },
             {
@@ -248,19 +319,37 @@ export const action = async ({ request }) => {
             {
                 namespace: "shade_sail",
                 key: "area",
-                value: area.toString(),
-                type: "number_decimal",
+                value: Area || "",
+                type: "single_line_text_field",
             },
             {
                 namespace: "shade_sail",
                 key: "perimeter",
-                value: perimeter.toString(),
-                type: "number_decimal",
+                value: Perimeter || "",
+                type: "single_line_text_field",
             },
             {
                 namespace: "shade_sail",
-                key: "measurements",
-                value: JSON.stringify(measurements),
+                key: "canvas_image_url",
+                value: canvasImageUrl || "",
+                type: "url",
+            },
+            {
+                namespace: "shade_sail",
+                key: "edge_measurements",
+                value: JSON.stringify(edgeMeasurements),
+                type: "json",
+            },
+            {
+                namespace: "shade_sail",
+                key: "diagonal_measurements",
+                value: JSON.stringify(diagonalMeasurementsObj),
+                type: "json",
+            },
+            {
+                namespace: "shade_sail",
+                key: "anchor_point_measurements",
+                value: JSON.stringify(anchorPointMeasurements),
                 type: "json",
             },
             {
@@ -284,26 +373,26 @@ export const action = async ({ request }) => {
             {
                 namespace: "shade_sail",
                 key: "uv_protection",
-                value: selectedFabric.uvProtection,
+                value: selectedFabric?.uvProtection || "",
                 type: "single_line_text_field",
             },
             {
                 namespace: "shade_sail",
-                key: "shade_factor",
-                value: selectedColor.shadeFactor.toString(),
-                type: "number_decimal",
-            },
-            {
-                namespace: "shade_sail",
                 key: "warranty_years",
-                value: selectedFabric.warrantyYears.toString(),
+                value: selectedFabric?.warrantyYears?.toString() || "",
                 type: "number_integer",
             },
             {
                 namespace: "shade_sail",
                 key: "weight_per_sqm",
-                value: selectedFabric.weightPerSqm.toString(),
+                value: selectedFabric?.weightPerSqm?.toString() || "",
                 type: "number_integer",
+            },
+            {
+                namespace: "shade_sail",
+                key: "created_at",
+                value: createdAt || new Date().toISOString(),
+                type: "date_time",
             },
         ];
 
@@ -475,30 +564,29 @@ export const action = async ({ request }) => {
         }
 
         const bulkVariantMutation = `
-    mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-  productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-    product {
-      id
-    }
-    productVariants {
-      id
-      metafields(first: 2) {
-        edges {
-          node {
-            namespace
-            key
-            value
-          }
-        }
-      }
-    }
-      
-    userErrors {
-      field
-      message
-    }
-  }
-}`;
+            mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+                productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+                    product {
+                        id
+                    }
+                    productVariants {
+                        id
+                        metafields(first: 2) {
+                            edges {
+                                node {
+                                    namespace
+                                    key
+                                    value
+                                }
+                            }
+                        }
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }`;
 
         const variantInput = [
             {
@@ -506,10 +594,7 @@ export const action = async ({ request }) => {
                 price: totalPrice.toString(),
             },
         ];
-        console.log("input", {
-            productId: createdProduct.id,
-            variants: variantInput,
-        });
+
         const bulkVariantResponse = await admin.graphql(bulkVariantMutation, {
             variables: {
                 productId: createdProduct.id,
@@ -519,108 +604,105 @@ export const action = async ({ request }) => {
         const bulkVariantResult = await bulkVariantResponse.json();
 
         if (
-            bulkVariantResult.data?.productVariantsBulkCreate?.userErrors?.length > 0
+            bulkVariantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0
         ) {
             console.error(
-                "Variant bulk create errors:",
-                bulkVariantResult.data.productVariantsBulkCreate.userErrors,
+                "Variant bulk update errors:",
+                bulkVariantResult.data.productVariantsBulkUpdate.userErrors,
             );
         }
 
-
-// Fetch the Online Store publication ID (do this once and cache if possible)
-const publicationsQuery = `
-  query {
-    publications(first: 10) {
-      edges {
-        node {
-          id
-          name
+        // Fetch the Online Store publication ID
+        const publicationsQuery = `
+            query {
+                publications(first: 10) {
+                    edges {
+                        node {
+                            id
+                            name
+                        }
+                    }
+                }
+            }`;
+        const publicationsResponse = await admin.graphql(publicationsQuery);
+        const publicationsResult = await publicationsResponse.json();
+        const onlineStorePublication = publicationsResult.data.publications.edges.find(
+            (edge) => edge.node.name === "Online Store"
+        );
+        if (!onlineStorePublication) {
+            throw new Error("Online Store publication not found");
         }
-      }
-    }
-  }
-`;
-const publicationsResponse = await admin.graphql(publicationsQuery);
-const publicationsResult = await publicationsResponse.json();
-const onlineStorePublication = publicationsResult.data.publications.edges.find(
-  (edge) => edge.node.name === "Online Store"
-);
-if (!onlineStorePublication) {
-  throw new Error("Online Store publication not found");
-}
-const onlineStorePublicationId = onlineStorePublication.node.id;
+        const onlineStorePublicationId = onlineStorePublication.node.id;
 
-// Publish the product to the Online Store
-const publishMutation = `
-  mutation {
-    publishablePublish(
-      id: "${createdProduct.id}",
-      input: [{ publicationId: "${onlineStorePublicationId}" }]
-    ) {
-      publishable {
-        availablePublicationsCount {
-          count
-        }
-        resourcePublicationsCount {
-          count
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-const publishResponse = await admin.graphql(publishMutation);
-const publishResult = await publishResponse.json();
-if (
-  publishResult.data?.publishablePublish?.userErrors &&
-  publishResult.data.publishablePublish.userErrors.length > 0
-) {
-  console.error("Publish errors:", publishResult.data.publishablePublish.userErrors);
-}
+        // Publish the product to the Online Store
+        const publishMutation = `
+            mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+                publishablePublish(id: $id, input: $input) {
+                    publishable {
+                        availablePublicationsCount {
+                            count
+                        }
+                        resourcePublicationsCount {
+                            count
+                        }
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }`;
 
-        // get product
-
-
-        const productCreateResponse = await admin.graphql(`query ProductMetafields($ownerId: ID!) {
-  product(id: $ownerId) {
-    id
-    title
-    handle
-    status
-    metafields(first: 250) {
-      edges {
-        node {
-          namespace
-          key
-          value
+        const publishResponse = await admin.graphql(publishMutation, {
+            variables: {
+                id: createdProduct.id,
+                input: [{ publicationId: onlineStorePublicationId }]
+            }
+        });
+        const publishResult = await publishResponse.json();
+        if (
+            publishResult.data?.publishablePublish?.userErrors &&
+            publishResult.data.publishablePublish.userErrors.length > 0
+        ) {
+            console.error("Publish errors:", publishResult.data.publishablePublish.userErrors);
         }
-      }
-    }
-    variants(first: 1) {
-      edges {
-        node {
-          id
-          price
-        }
-      }
-    }
-  }
-}`, {
+
+        // Get the complete product with metafields
+        const productQuery = `
+            query ProductMetafields($ownerId: ID!) {
+                product(id: $ownerId) {
+                    id
+                    title
+                    handle
+                    status
+                    metafields(first: 250, namespace: "shade_sail") {
+                        edges {
+                            node {
+                                namespace
+                                key
+                                value
+                            }
+                        }
+                    }
+                    variants(first: 1) {
+                        edges {
+                            node {
+                                id
+                                price
+                            }
+                        }
+                    }
+                }
+            }`;
+
+        const productResponseFinal = await admin.graphql(productQuery, {
             variables: {
                 ownerId: createdProduct.id,
             },
         });
 
-        const productCreateResult = await productCreateResponse.json();
-
-        const product = productCreateResult.data?.product;
-
-
-
+        const productResultFinal = await productResponseFinal.json();
+        const product = productResultFinal.data?.product;
 
         return new Response(
             JSON.stringify({

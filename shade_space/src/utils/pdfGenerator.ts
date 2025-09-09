@@ -93,10 +93,7 @@ async function getImageDimensions(base64: string): Promise<{ width: number; heig
 }
 
 export async function generatePDF(
-  config: ConfiguratorState, 
-  calculations: ShadeCalculations,
-  svgElement?: SVGSVGElement | HTMLElement
-): Promise<void> {
+config: ConfiguratorState, calculations: ShadeCalculations, svgElement?: SVGElement | undefined, isEmailSummary?: boolean | undefined): Promise<string | void> {
   console.log('🚀 Starting PDF generation...');
   console.log('📱 User agent:', navigator.userAgent);
   console.log('📊 Config corners:', config.corners);
@@ -634,6 +631,17 @@ export async function generatePDF(
     const filename = `ShadeSpace-Quote-${timestamp}-${Date.now()}.pdf`;
     
     console.log('💾 Preparing PDF download...');
+
+
+        // For email summary, return base64 string
+    if (isEmailSummary) {
+      console.log('📧 Generating PDF as base64 for email');
+      const pdfBase64 = pdf.output('datauristring'); // This returns base64 data URI
+      console.log('✅ PDF base64 generated successfully');
+      return pdfBase64;
+    }
+
+
     console.log('📱 Filename:', filename);
     
     // Check if user is on iOS device
@@ -648,12 +656,14 @@ export async function generatePDF(
       const pdfUrl = URL.createObjectURL(pdfBlob);
       console.log('🔗 Blob URL created:', pdfUrl);
       
+      
+
       // Create a temporary link element for download
       const link = document.createElement('a');
       link.href = pdfUrl;
       link.download = filename;
       link.style.display = 'none';
-      
+
       console.log('🔗 Triggering download via temporary link...');
       // Add to DOM, click, and remove
       document.body.appendChild(link);

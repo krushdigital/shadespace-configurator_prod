@@ -266,48 +266,88 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
         }
       }
 
+      // FIXED: Properly calculate edge measurements
+      const edgeMeasurements: { [key: string]: {  unit: string; formatted: string } } = {};
+      for (let i = 0; i < config.corners; i++) {
+        const nextIndex = (i + 1) % config.corners;
+        const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
+        const measurement = config.measurements[edgeKey];
+
+        if (measurement && measurement > 0) {
+          edgeMeasurements[edgeKey] = {
+            unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+            formatted: formatMeasurement(measurement, config.unit)
+          };
+        }
+      }
+
+      const diagonalMeasurementsObj: { [key: string]: { unit: string; formatted: string } } = {};
+
+      // Use the same diagonal keys that are displayed in the UI
+      const diagonalKeys = [];
+      if (config.corners === 4) {
+        diagonalKeys.push('AC', 'BD');
+      } else if (config.corners === 5) {
+        diagonalKeys.push('AC', 'AD', 'CE', 'BD', 'BE');
+      } else if (config.corners === 6) {
+        diagonalKeys.push('AC', 'AD', 'AE', 'BD', 'BE', 'BF', 'CE', 'CF', 'DF');
+      }
+
+      diagonalKeys.forEach((diagonalKey) => {
+        const measurement = config.measurements[diagonalKey];
+        if (measurement && measurement > 0) {
+          diagonalMeasurementsObj[diagonalKey] = {
+            unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+            formatted: formatMeasurement(measurement, config.unit)
+          };
+        }
+      });
+
+
+      const anchorPointMeasurements: { [key: string]: {  unit: string; formatted: string } } = {};
+    config.fixingHeights.forEach((height, index) => {
+      const corner = String.fromCharCode(65 + index);
+      anchorPointMeasurements[corner] = {
+        unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+        formatted: formatMeasurement(height, config.unit)
+      };
+    });
+
       if (canvasImageUrl) {
         const orderData = {
-          // Config state
           fabricType: config.fabricType,
           fabricColor: config.fabricColor,
           edgeType: config.edgeType,
           corners: config.corners,
           unit: config.unit,
-          measurementOption: config.measurementOption,
           currency: config.currency,
           measurements: config.measurements,
-          points: config.points,
-          fixingHeights: config.fixingHeights,
-          fixingTypes: config.fixingTypes,
-          eyeOrientations: config.eyeOrientations,
-          diagonalsInitiallyProvided: config.diagonalsInitiallyProvided,
-
-          // Calculations
           area: calculations.area,
           perimeter: calculations.perimeter,
           totalPrice: calculations.totalPrice,
-          webbingWidth: calculations.webbingWidth,
-          wireThickness: calculations.wireThickness,
-
-          // Selected items
-          selectedFabric,
-          selectedColor,
-
-          // Canvas image URL from Shopify
-          canvasImageUrl, // This will be the Shopify URL or null
-
-          // Acknowledgments
-          acknowledgments,
-
-          // Additional info from image
-          freeShipping: true,
-          noHiddenCosts: true,
-          premiumQuality: true,
-
-          // Timestamp
+          selectedFabric: selectedFabric,
+          selectedColor: selectedColor,
+          canvasImageUrl: canvasImageUrl,
+          warranty: selectedFabric?.warrantyYears || "",
+          fixingHeights: config.fixingHeights,
+          fixingTypes: config.fixingTypes,
+          eyeOrientations: config.eyeOrientations,
+          // Add the properly calculated measurements
+          edgeMeasurements: edgeMeasurements,
+          diagonalMeasurementsObj: diagonalMeasurementsObj,
+          anchorPointMeasurements: anchorPointMeasurements,
+          // Additional metadata
+          Fabric_Type: config.fabricType === 'extrablock330' && config.fabricColor && ['Yellow', 'Red', 'Cream', 'Beige'].includes(config.fabricColor) ?
+            'Not FR Certified' : selectedFabric?.label,
+          Shade_Factor: selectedColor?.shadeFactor,
+          Edge_Type: config.edgeType === 'webbing' ? 'Webbing Reinforced' : 'Cabled Edge',
+          Wire_Thickness: config.unit === 'imperial' ?
+            calculations?.wireThickness !== undefined ? `${(calculations.wireThickness * 0.0393701).toFixed(2)}"` : 'N/A'
+            : calculations?.wireThickness !== undefined ? `${calculations.wireThickness}mm` : 'N/A',
+          Area: formatArea(calculations.area * 1000000, config.unit),
+          Perimeter: formatMeasurement(calculations.perimeter * 1000, config.unit),
           createdAt: new Date().toISOString()
-        }
+        };
 
         handleAddToCart(orderData);
       }

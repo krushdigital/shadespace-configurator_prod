@@ -18,6 +18,7 @@ import { validateMeasurements, validateHeights, getDiagonalKeysForCorners } from
 import { generatePDF } from '../utils/pdfGenerator';
 import { ShapeCanvas } from './ShapeCanvas';
 import { EXCHANGE_RATES } from '../data/pricing'; // Import EXCHANGE_RATES to check supported currencies
+import { formatMeasurement, formatArea } from '../utils/geometry';
 
 const INITIAL_STATE: ConfiguratorState = {
   step: 0,
@@ -50,7 +51,6 @@ export function ShadeConfigurator() {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const reviewContentRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false)
-
   // Pricing and order state (lifted from ReviewContent)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showEmailInput, setShowEmailInput] = useState(false);
@@ -130,10 +130,11 @@ export function ShadeConfigurator() {
   const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
 
   // Pricing and order handlers (lifted from ReviewContent)
-  const handleGeneratePDF = async (svgElement?: SVGElement) => {
+  const handleGeneratePDF = async (svgElement?: SVGElement, isEmailSummary?: boolean) => {
     setIsGeneratingPDF(true);
     try {
-      await generatePDF(config, calculations, reviewContentRef.current || undefined, svgElement);
+      const pdf = await generatePDF(config, calculations, svgElement, isEmailSummary);
+      return pdf
     } catch (error) {
       console.error('Error generating PDF:', error);
 
@@ -146,23 +147,116 @@ export function ShadeConfigurator() {
   };
 
   // Enhanced PDF generation with SVG element
-  const handleGeneratePDFWithSVG = async () => {
+  const handleGeneratePDFWithSVG = async (isEmailSummary: boolean) => {
     const svgElement = canvasRef.current?.getSVGElement?.();
-    await handleGeneratePDF(svgElement);
+    const pdf = await handleGeneratePDF(svgElement, isEmailSummary);
+    return pdf;
   };
 
-  const handleEmailSummary = () => {
-    if (!showEmailInput) {
-      setShowEmailInput(true);
-    } else if (email.trim()) {
-      // TODO: Implement actual email sending functionality
-      alert(`Email summary will be sent to: ${email}`);
-      setShowEmailInput(false);
-      setEmail('');
-    } else {
-      // Cancel action
-      setShowEmailInput(false);
-      setEmail('');
+  const handleEmailSummary = async () => {
+    try {
+      if (!showEmailInput) {
+        setShowEmailInput(true);
+      } else if (email.trim()) {
+
+        const pdf = await handleGeneratePDFWithSVG(true)
+
+        // Prepare order data similar to what's done in ReviewContent
+        const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
+        const selectedColor = selectedFabric?.colors.find(c => c.name === config.fabricColor);
+
+        // Calculate edge measurements
+        const edgeMeasurements: { [key: string]: { unit: string; formatted: string } } = {};
+        for (let i = 0; i < config.corners; i++) {
+          const nextIndex = (i + 1) % config.corners;
+          const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
+          const measurement = config.measurements[edgeKey];
+
+          if (measurement && measurement > 0) {
+            edgeMeasurements[edgeKey] = {
+              unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+              formatted: formatMeasurement(measurement, config.unit)
+            };
+          }
+        }
+
+        // Calculate diagonal measurements
+        const diagonalMeasurementsObj: { [key: string]: { unit: string; formatted: string } } = {};
+        const diagonalKeys = [];
+        if (config.corners === 4) {
+          diagonalKeys.push('AC', 'BD');
+        } else if (config.corners === 5) {
+          diagonalKeys.push('AC', 'AD', 'CE', 'BD', 'BE');
+        } else if (config.corners === 6) {
+          diagonalKeys.push('AC', 'AD', 'AE', 'BD', 'BE', 'BF', 'CE', 'CF', 'DF');
+        }
+
+        diagonalKeys.forEach((diagonalKey) => {
+          const measurement = config.measurements[diagonalKey];
+          if (measurement && measurement > 0) {
+            diagonalMeasurementsObj[diagonalKey] = {
+              unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+              formatted: formatMeasurement(measurement, config.unit)
+            };
+          }
+        });
+
+        // Calculate anchor point measurements
+        const anchorPointMeasurements: { [key: string]: { unit: string; formatted: string } } = {};
+        config.fixingHeights.forEach((height, index) => {
+          const corner = String.fromCharCode(65 + index);
+          anchorPointMeasurements[corner] = {
+            unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+            formatted: formatMeasurement(height, config.unit)
+          };
+        });
+
+        // Create complete order data object
+        const orderData = {
+          fabricType: config.fabricType,
+          fabricColor: config.fabricColor,
+          edgeType: config.edgeType,
+          corners: config.corners,
+          unit: config.unit,
+          currency: config.currency,
+          measurements: config.measurements,
+          area: calculations.area,
+          perimeter: calculations.perimeter,
+          totalPrice: calculations.totalPrice,
+          selectedFabric: selectedFabric,
+          selectedColor: selectedColor,
+          warranty: selectedFabric?.warrantyYears || "",
+          fixingHeights: config.fixingHeights,
+          fixingTypes: config.fixingTypes,
+          eyeOrientations: config.eyeOrientations,
+          edgeMeasurements: edgeMeasurements,
+          diagonalMeasurementsObj: diagonalMeasurementsObj,
+          anchorPointMeasurements: anchorPointMeasurements,
+          Fabric_Type: config.fabricType === 'extrablock330' && config.fabricColor && ['Yellow', 'Red', 'Cream', 'Beige'].includes(config.fabricColor) ?
+            'Not FR Certified' : selectedFabric?.label,
+          Shade_Factor: selectedColor?.shadeFactor,
+          Edge_Type: config.edgeType === 'webbing' ? 'Webbing Reinforced' : 'Cabled Edge',
+          Wire_Thickness: config.unit === 'imperial' ?
+            calculations?.wireThickness !== undefined ? `${(calculations.wireThickness * 0.0393701).toFixed(2)}"` : 'N/A'
+            : calculations?.wireThickness !== undefined ? `${calculations.wireThickness}mm` : 'N/A',
+          Area: formatArea(calculations.area * 1000000, config.unit),
+          Perimeter: formatMeasurement(calculations.perimeter * 1000, config.unit),
+          createdAt: new Date().toISOString()
+        };
+
+        console.log(JSON.stringify(orderData, null, 2))
+
+        // TODO: Implement actual email sending functionality
+        alert(`Email summary will be sent to: ${email}`);
+        setShowEmailInput(false);
+        setEmail('');
+      } else {
+        // Cancel action
+        setShowEmailInput(false);
+        setEmail('');
+      }
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -249,7 +343,7 @@ export function ShadeConfigurator() {
     return edgeCount === config.corners;
   }, [config.corners, config.measurements]);
 
-  interface AddToCartOrderData {
+  interface OrderData {
     fabricType: string;
     fabricColor: string;
     edgeType: string;
@@ -257,40 +351,51 @@ export function ShadeConfigurator() {
     unit: 'metric' | 'imperial' | '';
     measurementOption: 'adjust' | 'exact' | '';
     currency: string;
-    measurements: Record<string, string | number | boolean>;
+    measurements: Record<string, number>;
     points: Point[];
     fixingHeights: number[];
     fixingTypes?: string[];
     eyeOrientations?: string[];
     diagonalsInitiallyProvided?: boolean;
-    canvasImage: string;
     area: number;
     perimeter: number;
     totalPrice: number;
     webbingWidth?: number;
     wireThickness?: number;
-    // Remove selectedFabric from index signature to avoid type conflict
-    // selectedFabric?: typeof selectedFabric;
-    selectedColor?: string;
-    acknowledgments: {
-      customManufactured: boolean;
-      measurementsAccurate: boolean;
-      installationNotIncluded: boolean;
-      structuralResponsibility: boolean;
+    selectedFabric: {
+      id: string;
+      label: string;
+      weightPerSqm: number;
+      uvProtection: string;
+      warrantyYears: number;
+      madeIn: string;
+      detailedDescription: string;
+      benefits: string[];
+      bestFor: string[];
     };
-    freeShipping: boolean;
-    noHiddenCosts: boolean;
+    selectedColor: {
+      name: string;
+      shadeFactor: number;
+      imageUrl?: string;
+    };
+    canvasImageUrl: string;
     warranty: string;
+    Fabric_Type: string;
+    Shade_Factor: string;
+    Edge_Type: string;
+    Wire_Thickness: string;
+    Area: string;
+    Perimeter: string;
     createdAt: string;
-    // Remove selectedFabric from index signature to avoid type conflict
-    // [key: string]: string | number | boolean | undefined;
+    // Edge measurements (A→B, B→C, etc.)
+    [edgeKey: string]: string | number | boolean | object | undefined;
   }
 
 
-  const handleAddToCart = async (orderData: AddToCartOrderData): Promise<void> => {
+  const handleAddToCart = async (orderData: OrderData): Promise<void> => {
     try {
-      console.log('product being created. Add to cart');
-      setLoading(true)
+      console.log('Product being created. Add to cart');
+      setLoading(true);
 
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
         method: 'POST',
@@ -300,64 +405,53 @@ export function ShadeConfigurator() {
         body: JSON.stringify(orderData),
       });
 
-      const data = await response.json()
-
-      const { success, product, error } = data
+      const data = await response.json();
+      const { success, product, error } = data;
 
       if (success && product) {
-        console.log('product created... Add to cart')
+        console.log('Product created... Adding to cart');
 
-        const metafieldProperties = {};
-        interface MetafieldNode {
-          key: string;
-          value: string;
-          [key: string]: unknown;
-        }
+        const metafieldProperties: Record<string, string> = {};
 
-        interface MetafieldEdge {
-          node: MetafieldNode;
-        }
-
-        interface MetafieldProperties {
-          [key: string]: string;
-        }
-
-        (product.metafields.edges as MetafieldEdge[]).forEach((edge: MetafieldEdge) => {
-          (metafieldProperties as MetafieldProperties)[
-            edge.node.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-          ] = edge.node.value;
+        product.metafields.edges.forEach((edge: any) => {
+          const key = edge.node.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          metafieldProperties[key] = edge.node.value;
         });
 
+        const gid = product?.variants?.edges?.[0]?.node?.id;
+        if (gid) {
+          const variantId = gid.split('/').pop();
 
-        const gid = product?.variants?.edges?.[0].node?.id;
-        const variantId = gid.split('/').pop();
+          const formData = {
+            items: [{
+              id: Number(variantId),
+              quantity: 1,
+              properties: metafieldProperties
+            }]
+          };
 
-        const formData = {
-          items: [{
-            id: Number(variantId),
-            quantity: 1,
-            properties: metafieldProperties
-          }]
-        };
+          console.log('Add to cart in progress');
+          const cartResponse = await fetch('/cart/add.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
 
-        console.log('Add to cart in progress');
-
-        const response = await fetch('/cart/add.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        })
-
-        if (response.ok) {
-          console.log('Added to cart');
-          window.location.href = '/cart'
+          if (cartResponse.ok) {
+            console.log('Added to cart');
+            window.location.href = '/cart';
+          } else {
+            console.error('Failed to add to cart');
+            setLoading(false);
+          }
+        } else {
+          console.error('No variant found in product');
+          setLoading(false);
         }
-
       } else if (!success && error) {
-        console.log(error);
+        console.error('Product creation failed:', error);
         setLoading(false);
       }
-
     } catch (error) {
       console.error('Error adding to cart:', error);
       setLoading(false);
@@ -931,7 +1025,7 @@ export function ShadeConfigurator() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={handleGeneratePDFWithSVG}
+                  onClick={() => handleGeneratePDFWithSVG(false)}
                   disabled={isGeneratingPDF}
                   className="w-full"
                 >
