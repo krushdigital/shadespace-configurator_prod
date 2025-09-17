@@ -120,7 +120,7 @@ export const action = async ({ request }) => {
 
     await sendMicrosoftEmail({
       to: receiver,
-      subject: `Shadespace: ${filename}`,
+      subject: `Your Shade Sail Quote Summary`,
       html: emailHtml,
       pdf,
       filename,
