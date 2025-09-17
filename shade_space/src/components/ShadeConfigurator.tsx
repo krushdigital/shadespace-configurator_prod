@@ -19,6 +19,7 @@ import { generatePDF } from '../utils/pdfGenerator';
 import { ShapeCanvas } from './ShapeCanvas';
 import { EXCHANGE_RATES } from '../data/pricing'; // Import EXCHANGE_RATES to check supported currencies
 import { formatMeasurement, formatArea } from '../utils/geometry';
+import { useToast } from "../components/ui/ToastProvider";
 
 const INITIAL_STATE: ConfiguratorState = {
   step: 0,
@@ -51,9 +52,11 @@ export function ShadeConfigurator() {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const reviewContentRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false)
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   // Pricing and order state (lifted from ReviewContent)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [acknowledgments, setAcknowledgments] = useState({
     customManufactured: false,
@@ -153,112 +156,236 @@ export function ShadeConfigurator() {
     return pdf;
   };
 
+  const convertSvgToPng = async (
+    svgElement: SVGSVGElement,
+    width?: number,
+    height?: number
+  ): Promise<Blob> => {
+    return new Promise<Blob>((resolve, reject) => {
+      try {
+        // Serialize SVG to string
+        const svgString: string = new XMLSerializer().serializeToString(svgElement);
+
+        // Create a blob from the SVG string
+        const svgBlob: Blob = new Blob([svgString], { type: 'image/svg+xml' });
+        const svgUrl: string = URL.createObjectURL(svgBlob);
+
+        // Create an image element
+        const img: HTMLImageElement = new Image();
+        img.onload = function () {
+          // Create a canvas with the desired dimensions
+          const canvas: HTMLCanvasElement = document.createElement('canvas');
+          canvas.width = width || img.width;
+          canvas.height = height || img.height;
+
+          // Draw the image on the canvas
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas to PNG
+            const pngUrl: string = canvas.toDataURL('image/png');
+
+            // Clean up
+            URL.revokeObjectURL(svgUrl);
+
+            // Convert data URL to blob
+            fetch(pngUrl)
+              .then(res => res.blob())
+              .then((blob: Blob) => {
+                resolve(blob);
+              })
+              .catch(error => reject(error));
+          } else {
+            URL.revokeObjectURL(svgUrl);
+            reject(new Error('Failed to get canvas context'));
+          }
+        };
+
+        img.onerror = function () {
+          URL.revokeObjectURL(svgUrl);
+          reject(new Error('Failed to load SVG image'));
+        };
+
+        img.src = svgUrl;
+      } catch (error) {
+        reject(error as Error);
+      }
+    });
+  };
+
+
+  // Add this function to your component
+  const uploadImageToShopify = async (blob: Blob, filename: string): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', blob, filename);
+
+      const response = await fetch('/apps/shade_space/api/v1/public/file/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image to Shopify');
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.url) {
+        return result.url;
+      } else {
+        console.error('Shopify upload failed:', result.error);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error uploading image to Shopify:', error);
+      return null;
+    }
+  };
+
   const handleEmailSummary = async () => {
     try {
       if (!showEmailInput) {
         setShowEmailInput(true);
-      } else if (email.trim()) {
+        return;
+      }
 
-        const pdf = await handleGeneratePDFWithSVG(true)
+      if (!email.trim()) {
+        setShowEmailInput(false);
+        setEmail('');
+        return;
+      }
 
-        // Prepare order data similar to what's done in ReviewContent
-        const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
-        const selectedColor = selectedFabric?.colors.find(c => c.name === config.fabricColor);
+      setIsSendingEmail(true); // ✅ Start loading
 
-        // Calculate edge measurements
-        const edgeMeasurements: { [key: string]: { unit: string; formatted: string } } = {};
-        for (let i = 0; i < config.corners; i++) {
-          const nextIndex = (i + 1) % config.corners;
-          const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
-          const measurement = config.measurements[edgeKey];
+       await new Promise(resolve => setTimeout(resolve, 0));
 
-          if (measurement && measurement > 0) {
-            edgeMeasurements[edgeKey] = {
-              unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
-              formatted: formatMeasurement(measurement, config.unit)
-            };
+      const pdf = await handleGeneratePDFWithSVG(true);
+
+      // Get the SVG element and upload preview
+      const svgElement = canvasRef.current?.getSVGElement();
+      let canvasImageUrl = null;
+
+      if (svgElement) {
+        try {
+          const canvasImageBlob = await convertSvgToPng(svgElement, 600, 500);
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `shade-sail-${config.corners}corner-${timestamp}.png`;
+          canvasImageUrl = await uploadImageToShopify(canvasImageBlob, filename);
+          if (!canvasImageUrl) {
+            console.warn('Failed to upload canvas image to Shopify, proceeding without image');
           }
+        } catch (error) {
+          console.error('Error processing canvas image:', error);
         }
+      }
 
-        // Calculate diagonal measurements
-        const diagonalMeasurementsObj: { [key: string]: { unit: string; formatted: string } } = {};
-        const diagonalKeys = [];
-        if (config.corners === 4) {
-          diagonalKeys.push('AC', 'BD');
-        } else if (config.corners === 5) {
-          diagonalKeys.push('AC', 'AD', 'CE', 'BD', 'BE');
-        } else if (config.corners === 6) {
-          diagonalKeys.push('AC', 'AD', 'AE', 'BD', 'BE', 'BF', 'CE', 'CF', 'DF');
-        }
+      const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
+      const selectedColor = selectedFabric?.colors.find(c => c.name === config.fabricColor);
 
-        diagonalKeys.forEach((diagonalKey) => {
-          const measurement = config.measurements[diagonalKey];
-          if (measurement && measurement > 0) {
-            diagonalMeasurementsObj[diagonalKey] = {
-              unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
-              formatted: formatMeasurement(measurement, config.unit)
-            };
-          }
-        });
-
-        // Calculate anchor point measurements
-        const anchorPointMeasurements: { [key: string]: { unit: string; formatted: string } } = {};
-        config.fixingHeights.forEach((height, index) => {
-          const corner = String.fromCharCode(65 + index);
-          anchorPointMeasurements[corner] = {
+      const edgeMeasurements: Record<string, { unit: string; formatted: string }> = {};
+      for (let i = 0; i < config.corners; i++) {
+        const nextIndex = (i + 1) % config.corners;
+        const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
+        const measurement = config.measurements[edgeKey];
+        if (measurement && measurement > 0) {
+          edgeMeasurements[edgeKey] = {
             unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
-            formatted: formatMeasurement(height, config.unit)
+            formatted: formatMeasurement(measurement, config.unit)
           };
-        });
+        }
+      }
 
-        // Create complete order data object
-        const orderData = {
-          fabricType: config.fabricType,
-          fabricColor: config.fabricColor,
-          edgeType: config.edgeType,
-          corners: config.corners,
-          unit: config.unit,
-          currency: config.currency,
-          measurements: config.measurements,
-          area: calculations.area,
-          perimeter: calculations.perimeter,
-          totalPrice: calculations.totalPrice,
-          selectedFabric: selectedFabric,
-          selectedColor: selectedColor,
-          warranty: selectedFabric?.warrantyYears || "",
-          fixingHeights: config.fixingHeights,
-          fixingTypes: config.fixingTypes,
-          eyeOrientations: config.eyeOrientations,
-          edgeMeasurements: edgeMeasurements,
-          diagonalMeasurementsObj: diagonalMeasurementsObj,
-          anchorPointMeasurements: anchorPointMeasurements,
-          Fabric_Type: config.fabricType === 'extrablock330' && config.fabricColor && ['Yellow', 'Red', 'Cream', 'Beige'].includes(config.fabricColor) ?
-            'Not FR Certified' : selectedFabric?.label,
-          Shade_Factor: selectedColor?.shadeFactor,
-          Edge_Type: config.edgeType === 'webbing' ? 'Webbing Reinforced' : 'Cabled Edge',
-          Wire_Thickness: config.unit === 'imperial' ?
-            calculations?.wireThickness !== undefined ? `${(calculations.wireThickness * 0.0393701).toFixed(2)}"` : 'N/A'
-            : calculations?.wireThickness !== undefined ? `${calculations.wireThickness}mm` : 'N/A',
-          Area: formatArea(calculations.area * 1000000, config.unit),
-          Perimeter: formatMeasurement(calculations.perimeter * 1000, config.unit),
-          createdAt: new Date().toISOString()
+      const diagonalMeasurementsObj: Record<string, { unit: string; formatted: string }> = {};
+      const diagonalKeys =
+        config.corners === 4 ? ['AC', 'BD'] :
+          config.corners === 5 ? ['AC', 'AD', 'CE', 'BD', 'BE'] :
+            config.corners === 6 ? ['AC', 'AD', 'AE', 'BD', 'BE', 'BF', 'CE', 'CF', 'DF'] :
+              [];
+
+      diagonalKeys.forEach(key => {
+        const measurement = config.measurements[key];
+        if (measurement && measurement > 0) {
+          diagonalMeasurementsObj[key] = {
+            unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+            formatted: formatMeasurement(measurement, config.unit)
+          };
+        }
+      });
+
+      const anchorPointMeasurements: Record<string, { unit: string; formatted: string }> = {};
+      config.fixingHeights.forEach((height, index) => {
+        const corner = String.fromCharCode(65 + index);
+        anchorPointMeasurements[corner] = {
+          unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+          formatted: formatMeasurement(height, config.unit)
         };
+      });
 
-        console.log(JSON.stringify(orderData, null, 2))
+      const orderData = {
+        fabricType: config.fabricType,
+        fabricColor: config.fabricColor,
+        edgeType: config.edgeType,
+        corners: config.corners,
+        unit: config.unit,
+        currency: config.currency,
+        measurements: config.measurements,
+        area: calculations.area,
+        perimeter: calculations.perimeter,
+        totalPrice: calculations.totalPrice,
+        selectedFabric,
+        selectedColor,
+        warranty: selectedFabric?.warrantyYears || "",
+        fixingHeights: config.fixingHeights,
+        fixingTypes: config.fixingTypes,
+        eyeOrientations: config.eyeOrientations,
+        edgeMeasurements,
+        diagonalMeasurementsObj,
+        anchorPointMeasurements,
+        Fabric_Type: config.fabricType === 'extrablock330' && ['Yellow', 'Red', 'Cream', 'Beige'].includes(config.fabricColor)
+          ? 'Not FR Certified'
+          : selectedFabric?.label,
+        Shade_Factor: selectedColor?.shadeFactor,
+        Edge_Type: config.edgeType === 'webbing' ? 'Webbing Reinforced' : 'Cabled Edge',
+        Wire_Thickness: config.unit === 'imperial'
+          ? calculations?.wireThickness !== undefined
+            ? `${(calculations.wireThickness * 0.0393701).toFixed(2)}"`
+            : 'N/A'
+          : calculations?.wireThickness !== undefined
+            ? `${calculations.wireThickness}mm`
+            : 'N/A',
+        Area: formatArea(calculations.area * 1000000, config.unit),
+        Perimeter: formatMeasurement(calculations.perimeter * 1000, config.unit),
+        canvasImage: canvasImageUrl,
+        createdAt: new Date().toISOString()
+      };
 
-        // TODO: Implement actual email sending functionality
-        alert(`Email summary will be sent to: ${email}`);
+      const response = await fetch(
+        '/apps/shade_space/api/v1/public/email-summary-send',
+        {
+          method: "POST",
+          body: JSON.stringify({ pdf, ...orderData, email }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(data.message, "success");
         setShowEmailInput(false);
         setEmail('');
       } else {
-        // Cancel action
-        setShowEmailInput(false);
-        setEmail('');
+        showToast(data.error || "Failed to send email", "error");
       }
     } catch (error) {
-      console.log(error);
+      console.error("Email send failed:", error);
+      showToast("An unexpected error occurred while sending email.", "error");
+    } finally {
+      setIsSendingEmail(false); // ✅ stop loading only after everything finishes
     }
   };
+
 
   const handleCancelEmailInput = () => {
     setShowEmailInput(false);
@@ -1012,7 +1139,7 @@ export function ShadeConfigurator() {
         )}
 
         {/* Desktop Pricing Summary - Sticky Sidebar (Dimensions & Review steps) */}
-        {(openStep >= 5) && !isMobile && (
+        {(openStep >= 5) && (
           <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-8 lg:self-start z-10 space-y-4">
             <PriceSummaryDisplay
               config={config}
@@ -1055,9 +1182,25 @@ export function ShadeConfigurator() {
                         variant="primary"
                         size="sm"
                         onClick={handleEmailSummary}
-                        className="w-full"
+                        className="w-full flex items-center justify-center gap-2"
+                        disabled={isSendingEmail}
                       >
-                        Send Email
+                        {isSendingEmail && (
+                          <svg
+                            className="animate-spin h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                            ></path>
+                          </svg>
+                        )}
+                        {isSendingEmail ? "Sending..." : "Send Email"}
                       </Button>
                       <Button
                         variant="outline"

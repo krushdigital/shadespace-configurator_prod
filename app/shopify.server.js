@@ -6,7 +6,9 @@ import {
 } from "@shopify/shopify-app-remix/server";
 import { MongoDBSessionStorage } from "@shopify/shopify-app-session-storage-mongodb";
 import { dbconnection } from "./db.server";
-import 'dotenv/config'
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 dbconnection();
 
