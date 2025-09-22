@@ -50,6 +50,7 @@ export function ShadeConfigurator() {
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [typoSuggestions, setTypoSuggestions] = useState<{ [key: string]: number }>({});
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  console.log('isMobile: ', isMobile);
   const reviewContentRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false)
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -259,7 +260,7 @@ export function ShadeConfigurator() {
 
       setIsSendingEmail(true); // ✅ Start loading
 
-       await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       const pdf = await handleGeneratePDFWithSVG(true);
 
@@ -520,10 +521,11 @@ export function ShadeConfigurator() {
 
 
   const handleAddToCart = async (orderData: OrderData): Promise<void> => {
-    try {
-      console.log('Product being created. Add to cart');
+     console.log('Product being created. Add to cart');
+      // ✅ Immediately update the UI
       setLoading(true);
 
+    try {
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
         method: 'POST',
         headers: {
@@ -558,6 +560,9 @@ export function ShadeConfigurator() {
           };
 
           console.log('Add to cart in progress');
+
+        
+
           const cartResponse = await fetch('/cart/add.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1106,6 +1111,7 @@ export function ShadeConfigurator() {
                   canvasRef={canvasRef}
                   ref={index === 6 ? reviewContentRef : undefined}
                   loading={loading}
+                  setLoading={setLoading}
                 />
               </AccordionStep>
             );

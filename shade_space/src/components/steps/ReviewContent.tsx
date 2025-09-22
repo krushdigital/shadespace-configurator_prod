@@ -41,6 +41,7 @@ interface ReviewContentProps {
   handleCancelEmailInput: () => void;
   canvasRef: React.RefObject<InteractiveMeasurementCanvasRef>;
   loading: boolean
+   setLoading: (loading: boolean) => void;
 }
 
 export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
@@ -66,7 +67,8 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
   isMobile = false,
   handleCancelEmailInput,
   canvasRef,
-  loading
+  loading,
+  setLoading
 }, ref) => {
   const [highlightedMeasurement, setHighlightedMeasurement] = useState<string | null>(null);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
@@ -830,7 +832,10 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 ? 'opacity-50 cursor-not-allowed bg-gray-400 hover:bg-gray-400 text-gray-600'
                 : ''
                 }`}
-              onClick={handleAttemptAddToCart}
+              onClick={()=>{
+                setLoading(true);
+                handleAttemptAddToCart()
+              }}
               disabled={!canAddToCart || loading}
             >
               {loading ? (
