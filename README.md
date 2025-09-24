@@ -372,3 +372,4 @@ This template uses [Remix](https://remix.run). The following Shopify tools are a
 # Heidi-Suckling
 # heidi-suckling-hasan
 # shadespace-configurator_prod
+# shadespace-configurator_prod
