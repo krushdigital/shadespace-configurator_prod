@@ -665,9 +665,9 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
             : showValidationFeedback && !allAcknowledgmentsChecked
               ? 'bg-red-100 border-red-600 ring-4 ring-red-200'
               : !allAcknowledgmentsChecked
-                ? 'bg-red-50 border-red-300'
+                ? '!border-red-500 bg-red-50 hover:!border-red-600'
                 : 'bg-slate-50 border-slate-200'
-            }`}>
+            } `}>
           <h4 className="text-lg font-semibold text-slate-900 mb-4">
             Important Acknowledgments
             {allAcknowledgmentsChecked && (
