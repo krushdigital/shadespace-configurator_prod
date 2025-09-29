@@ -13,3 +13,19 @@
 .no-spin-arrows[type=number] {
   -moz-appearance: textfield;
 }
+
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+.animation-delay-75 {
+  animation-delay: -0.75s;
+}
+.animation-delay-200 {
+  animation-delay: -0.2s;
+}

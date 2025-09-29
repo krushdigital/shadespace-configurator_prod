@@ -20,6 +20,7 @@ import { ShapeCanvas } from './ShapeCanvas';
 import { EXCHANGE_RATES } from '../data/pricing'; // Import EXCHANGE_RATES to check supported currencies
 import { formatMeasurement, formatArea } from '../utils/geometry';
 import { useToast } from "../components/ui/ToastProvider";
+import { LoadingOverlay } from './ui/loader';
 
 const INITIAL_STATE: ConfiguratorState = {
   step: 0,
@@ -64,6 +65,11 @@ export function ShadeConfigurator() {
     measurementsAccurate: false,
     installationNotIncluded: false,
     structuralResponsibility: false
+  });
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
+  const [loadingStep, setLoadingStep] = useState({
+    text: 'Preparing your order...',
+    progress: 0
   });
 
   // Highlighted measurement state for sticky diagram
@@ -521,11 +527,16 @@ export function ShadeConfigurator() {
 
 
   const handleAddToCart = async (orderData: OrderData): Promise<void> => {
-     console.log('Product being created. Add to cart');
-      // ✅ Immediately update the UI
-      setLoading(true);
+    console.log('Product being created. Add to cart');
+    // ✅ Immediately update the UI
+    setShowLoadingOverlay(true);
+    setLoadingStep({ text: 'Starting order process...', progress: 10 });
+    setLoading(true);
 
     try {
+
+      setLoadingStep({ text: 'Creating your custom product...', progress: 30 });
+
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
         method: 'POST',
         headers: {
@@ -539,7 +550,7 @@ export function ShadeConfigurator() {
 
       if (success && product) {
         console.log('Product created... Adding to cart');
-
+        setLoadingStep({ text: 'Processing product details...', progress: 60 });
         const metafieldProperties: Record<string, string> = {};
 
         product.metafields.edges.forEach((edge: any) => {
@@ -560,8 +571,8 @@ export function ShadeConfigurator() {
           };
 
           console.log('Add to cart in progress');
+          setLoadingStep({ text: 'Adding item to your cart...', progress: 85 });
 
-        
 
           const cartResponse = await fetch('/cart/add.js', {
             method: 'POST',
@@ -571,21 +582,26 @@ export function ShadeConfigurator() {
 
           if (cartResponse.ok) {
             console.log('Added to cart');
+            setLoadingStep({ text: 'Order complete! Redirecting...', progress: 100 });
             window.location.href = '/cart';
           } else {
             console.error('Failed to add to cart');
+            setShowLoadingOverlay(false);
             setLoading(false);
           }
         } else {
           console.error('No variant found in product');
+          setShowLoadingOverlay(false);
           setLoading(false);
         }
       } else if (!success && error) {
         console.error('Product creation failed:', error);
+        setShowLoadingOverlay(false);
         setLoading(false);
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
+      setShowLoadingOverlay(false);
       setLoading(false);
     }
   };
@@ -1112,6 +1128,7 @@ export function ShadeConfigurator() {
                   ref={index === 6 ? reviewContentRef : undefined}
                   loading={loading}
                   setLoading={setLoading}
+                  setShowLoadingOverlay={setShowLoadingOverlay}
                 />
               </AccordionStep>
             );
@@ -1225,6 +1242,12 @@ export function ShadeConfigurator() {
         )}
 
       </div>
+
+      <LoadingOverlay
+        isVisible={showLoadingOverlay}
+        currentStep={loadingStep.text}
+        progress={loadingStep.progress}
+      />
     </div>
   );
 }

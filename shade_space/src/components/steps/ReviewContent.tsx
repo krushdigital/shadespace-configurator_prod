@@ -41,7 +41,8 @@ interface ReviewContentProps {
   handleCancelEmailInput: () => void;
   canvasRef: React.RefObject<InteractiveMeasurementCanvasRef>;
   loading: boolean
-   setLoading: (loading: boolean) => void;
+  setLoading: (loading: boolean) => void;
+  setShowLoadingOverlay:(loading: boolean) => void;
 }
 
 export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
@@ -68,7 +69,8 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
   handleCancelEmailInput,
   canvasRef,
   loading,
-  setLoading
+  setLoading,
+  setShowLoadingOverlay
 }, ref) => {
   const [highlightedMeasurement, setHighlightedMeasurement] = useState<string | null>(null);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
@@ -269,7 +271,7 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
       }
 
       // FIXED: Properly calculate edge measurements
-      const edgeMeasurements: { [key: string]: {  unit: string; formatted: string } } = {};
+      const edgeMeasurements: { [key: string]: { unit: string; formatted: string } } = {};
       for (let i = 0; i < config.corners; i++) {
         const nextIndex = (i + 1) % config.corners;
         const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
@@ -306,14 +308,14 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
       });
 
 
-      const anchorPointMeasurements: { [key: string]: {  unit: string; formatted: string } } = {};
-    config.fixingHeights.forEach((height, index) => {
-      const corner = String.fromCharCode(65 + index);
-      anchorPointMeasurements[corner] = {
-        unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
-        formatted: formatMeasurement(height, config.unit)
-      };
-    });
+      const anchorPointMeasurements: { [key: string]: { unit: string; formatted: string } } = {};
+      config.fixingHeights.forEach((height, index) => {
+        const corner = String.fromCharCode(65 + index);
+        anchorPointMeasurements[corner] = {
+          unit: config.unit === 'imperial' ? 'inches' : 'millimeters',
+          formatted: formatMeasurement(height, config.unit)
+        };
+      });
 
       if (canvasImageUrl) {
         const orderData = {
@@ -832,8 +834,9 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 ? 'opacity-50 cursor-not-allowed bg-gray-400 hover:bg-gray-400 text-gray-600'
                 : ''
                 }`}
-              onClick={()=>{
+              onClick={() => {
                 setLoading(true);
+                setShowLoadingOverlay(true)
                 handleAttemptAddToCart()
               }}
               disabled={!canAddToCart || loading}

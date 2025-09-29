@@ -15,8 +15,8 @@ export const action = async ({ request }) => {
         }
 
         const session = sessions[0];
-        const adminAccessToken = session.accessToken; // This is Admin API token
-        const shop = session.shop; // This is myshopify.com domain
+        const adminAccessToken = session.accessToken; 
+        const shop = session.shop; 
 
         // Get shop domains using Admin API
         const shopResponse = await fetch(`https://${shop}/admin/api/2025-07/graphql.json`, {
@@ -55,13 +55,10 @@ export const action = async ({ request }) => {
 
         const primaryDomain = shopData.data?.shop?.primaryDomain?.host || shop;
 
-        // Extract variant ID number from GID
         const variantIdNumber = variantId.replace('gid://shopify/ProductVariant/', '');
         
-        // Build cart permalink URL with properties
         let cartUrl = `https://${primaryDomain}/cart/${variantIdNumber}:${quantity}`;
         
-        // Add line item properties if provided
         if (customProperties && customProperties.length > 0) {
             const properties = customProperties.map(prop => 
                 `properties[${encodeURIComponent(prop.key)}]=${encodeURIComponent(prop.value)}`
@@ -74,7 +71,7 @@ export const action = async ({ request }) => {
             success: true,
             cartUrl: cartUrl,
             primaryDomain: primaryDomain,
-            message: "Cart URL generated successfully"
+            message: "Cart URL generated successfully "
         }), { status: 200 });
 
     } catch (error) {
