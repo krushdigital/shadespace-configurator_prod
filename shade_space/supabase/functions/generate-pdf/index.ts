@@ -98,6 +98,16 @@ function formatCurrency(amount: number, currencyCode: string): string {
   return `${symbol}${amount.toFixed(2)}`;
 }
 
+function formatWeight(totalWeightGrams: number, unit: 'metric' | 'imperial'): string {
+  if (unit === 'imperial') {
+    const pounds = (totalWeightGrams / 1000) * 2.20462;
+    return `${pounds.toFixed(1)} lb`;
+  } else {
+    const kilograms = totalWeightGrams / 1000;
+    return `${kilograms.toFixed(1)} kg`;
+  }
+}
+
 function generateHTMLContent(config: ConfiguratorState, calculations: ShadeCalculations): string {
   const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
   const date = new Date().toLocaleDateString('en-US', { 
@@ -524,7 +534,7 @@ function generateHTMLContent(config: ConfiguratorState, calculations: ShadeCalcu
                 </div>
                 <div class="config-item">
                     <span class="config-label">Total Weight:</span>
-                    <span class="config-value">${(calculations.totalWeightGrams / 1000).toFixed(1)} kg</span>
+                    <span class="config-value">${formatWeight(calculations.totalWeightGrams, config.unit)}</span>
                 </div>
                 <div class="config-item">
                     <span class="config-label">Measurement Units:</span>

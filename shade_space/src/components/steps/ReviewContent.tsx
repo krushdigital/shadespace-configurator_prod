@@ -468,7 +468,10 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 <div className="flex justify-between">
                   <span className="text-slate-600">Total Weight:</span>
                   <span className="font-medium text-slate-900">
-                    {(calculations.totalWeightGrams / 1000).toFixed(1)} kg
+                    {config.unit === 'imperial' 
+                      ? `${(calculations.totalWeightGrams / 1000 * 2.20462).toFixed(1)} lb`
+                      : `${(calculations.totalWeightGrams / 1000).toFixed(1)} kg`
+                    }
                   </span>
                 </div>
                 {config.measurementOption === 'adjust' && (
