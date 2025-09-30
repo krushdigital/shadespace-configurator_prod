@@ -523,6 +523,10 @@ function generateHTMLContent(config: ConfiguratorState, calculations: ShadeCalcu
                     <span class="config-value">${formatMeasurement(calculations.perimeter * 1000, config.unit)}</span>
                 </div>
                 <div class="config-item">
+                    <span class="config-label">Total Weight:</span>
+                    <span class="config-value">${(calculations.totalWeightGrams / 1000).toFixed(1)} kg</span>
+                </div>
+                <div class="config-item">
                     <span class="config-label">Measurement Units:</span>
                     <span class="config-value">${config.unit === 'metric' ? 'Metric (mm/m)' : 'Imperial (in/ft)'}</span>
                 </div>

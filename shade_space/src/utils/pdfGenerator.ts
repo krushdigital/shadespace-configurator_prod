@@ -258,6 +258,7 @@ config: ConfiguratorState, calculations: ShadeCalculations, svgElement?: SVGElem
       ['Number of Corners:', config.corners.toString()],
       ['Total Area:', formatArea(calculations.area * 1000000, config.unit)],
       ['Total Perimeter:', formatMeasurement(calculations.perimeter * 1000, config.unit)],
+      ['Total Weight:', `${(calculations.totalWeightGrams / 1000).toFixed(1)} kg`],
       ['Measurement Units:', config.unit === 'metric' ? 'Metric (mm/m)' : 'Imperial (in/ft)'],
       ['Manufacturing Option:', config.measurementOption === 'adjust' ? 'Adjust to fit space (hardware included)' : 'Exact dimensions (hardware not included)'],
       ...(config.measurementOption === 'adjust' ? [['Hardware Included:', 'Yes - Turnbuckles & Shackles']] : []),
