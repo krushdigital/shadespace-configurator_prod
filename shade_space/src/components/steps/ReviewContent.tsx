@@ -337,6 +337,7 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
           area: calculations.area,
           perimeter: calculations.perimeter,
           totalPrice: calculations.totalPrice,
+          totalWeightGrams: calculations.totalWeightGrams,
           selectedFabric: selectedFabric,
           selectedColor: selectedColor,
           canvasImageUrl: canvasImageUrl,

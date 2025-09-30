@@ -474,7 +474,7 @@ export const action = async ({ request }) => {
       throw new Error("Product creation failed - no product returned");
     }
 
-    // Step 4: Add images to the product
+    // Add images to the product
     const imagePromises = [];
 
     // Add canvas image (technical drawing)
@@ -555,55 +555,6 @@ export const action = async ({ request }) => {
       if (imageResult.data?.productCreateMedia?.media) {
         processedImages.push(...imageResult.data.productCreateMedia.media);
       }
-    }
-
-    const bulkVariantMutation = `
-            mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-                productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-                    product {
-                        id
-                    }
-                    productVariants {
-                        id
-                        metafields(first: 2) {
-                            edges {
-                                node {
-                                    namespace
-                                    key
-                                    value
-                                }
-                            }
-                        }
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }`;
-
-    const variantInput = [
-      {
-        id: createdProduct.variants.edges[0]?.node.id,
-        price: totalPrice.toString(),
-      },
-    ];
-
-    const bulkVariantResponse = await admin.graphql(bulkVariantMutation, {
-      variables: {
-        productId: createdProduct.id,
-        variants: variantInput,
-      },
-    });
-    const bulkVariantResult = await bulkVariantResponse.json();
-
-    if (
-      bulkVariantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0
-    ) {
-      console.error(
-        "Variant bulk update errors:",
-        bulkVariantResult.data.productVariantsBulkUpdate.userErrors,
-      );
     }
 
     // Fetch the Online Store publication ID
