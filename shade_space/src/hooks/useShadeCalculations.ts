@@ -46,7 +46,7 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
         edgeCost: 0,
         hardwareCost: 0,
         totalPrice: 0,
-        webbingWidth: 0
+        webbingWidth: 0,
         totalWeightGrams: 0
       };
     }
