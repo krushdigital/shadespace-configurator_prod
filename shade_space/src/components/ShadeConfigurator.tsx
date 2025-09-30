@@ -528,21 +528,61 @@ export function ShadeConfigurator() {
 
   const handleAddToCart = async (orderData: OrderData): Promise<void> => {
     console.log('Product being created. Add to cart');
-    // ✅ Immediately update the UI
     setShowLoadingOverlay(true);
     setLoadingStep({ text: 'Starting order process...', progress: 10 });
     setLoading(true);
 
     try {
-
       setLoadingStep({ text: 'Creating your custom product...', progress: 30 });
+
+      // Format measurements for cart display
+      const formatCartProperties = (measurements: any) => {
+        const formatted: Record<string, string> = {};
+
+        Object.keys(measurements).forEach(key => {
+          if (measurements[key] && typeof measurements[key] === 'object' && measurements[key].formatted) {
+            formatted[key] = measurements[key].formatted;
+          }
+        });
+
+        return formatted;
+      };
+
+      const cartEdgeMeasurements = formatCartProperties(orderData.edgeMeasurements);
+      const cartDiagonalMeasurements = formatCartProperties(orderData.diagonalMeasurementsObj);
+      const cartAnchorMeasurements = formatCartProperties(orderData.anchorPointMeasurements);
+
+      // Format arrays for cart display
+      const formatArrayForCart = (array: any[], label: string) => {
+        if (!array || !Array.isArray(array)) return {};
+
+        const result: Record<string, string> = {};
+        array.forEach((item, index) => {
+          const corner = String.fromCharCode(65 + index);
+          result[`${label} ${corner}`] = typeof item === 'string' ? item : String(item);
+        });
+        return result;
+      };
+
+      const cartFixingHeights = formatArrayForCart(orderData.fixingHeights, 'Fixing Height');
+      const cartFixingTypes = formatArrayForCart(orderData.fixingTypes, 'Fixing Type');
+      const cartEyeOrientations = formatArrayForCart(orderData.eyeOrientations, 'Eye Orientation');
 
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify({
+          ...orderData,
+          // Pass formatted properties for cart display
+          cartEdgeMeasurements,
+          cartDiagonalMeasurements,
+          cartAnchorMeasurements,
+          cartFixingHeights,
+          cartFixingTypes,
+          cartEyeOrientations
+        }),
       });
 
       const data = await response.json();
@@ -551,11 +591,52 @@ export function ShadeConfigurator() {
       if (success && product) {
         console.log('Product created... Adding to cart');
         setLoadingStep({ text: 'Processing product details...', progress: 60 });
+
         const metafieldProperties: Record<string, string> = {};
 
+        // Only include specific metafields in cart properties (exclude the ones you want to hide)
+        const allowedCartProperties = [
+          'fabric_material',
+          'fabric_color',
+          'fabric_certification_type',
+          'edge_type',
+          'wire_thickness',
+          'corners',
+          'area',
+          'perimeter'
+        ];
+
         product.metafields.edges.forEach((edge: any) => {
-          const key = edge.node.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-          metafieldProperties[key] = edge.node.value;
+          // Only include allowed properties in cart display
+          if (allowedCartProperties.includes(edge.node.key)) {
+            const key = edge.node.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            metafieldProperties[key] = edge.node.value;
+          }
+        });
+
+        // Add formatted cart properties (these will show in cart)
+        Object.entries(cartEdgeMeasurements).forEach(([key, value]) => {
+          metafieldProperties[`Edge ${key}`] = value;
+        });
+
+        Object.entries(cartDiagonalMeasurements).forEach(([key, value]) => {
+          metafieldProperties[`Diagonal ${key}`] = value;
+        });
+
+        Object.entries(cartAnchorMeasurements).forEach(([key, value]) => {
+          metafieldProperties[`Anchor Height ${key}`] = value;
+        });
+
+        Object.entries(cartFixingHeights).forEach(([key, value]) => {
+          metafieldProperties[key] = value;
+        });
+
+        Object.entries(cartFixingTypes).forEach(([key, value]) => {
+          metafieldProperties[key] = value;
+        });
+
+        Object.entries(cartEyeOrientations).forEach(([key, value]) => {
+          metafieldProperties[key] = value;
         });
 
         const gid = product?.variants?.edges?.[0]?.node?.id;
@@ -572,7 +653,6 @@ export function ShadeConfigurator() {
 
           console.log('Add to cart in progress');
           setLoadingStep({ text: 'Adding item to your cart...', progress: 85 });
-
 
           const cartResponse = await fetch('/cart/add.js', {
             method: 'POST',

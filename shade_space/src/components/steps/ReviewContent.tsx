@@ -42,7 +42,7 @@ interface ReviewContentProps {
   canvasRef: React.RefObject<InteractiveMeasurementCanvasRef>;
   loading: boolean
   setLoading: (loading: boolean) => void;
-  setShowLoadingOverlay:(loading: boolean) => void;
+  setShowLoadingOverlay: (loading: boolean) => void;
 }
 
 export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
@@ -76,9 +76,17 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
   const diagonalCardRef = useRef<HTMLDivElement>(null);
   const acknowledgementsCardRef = useRef<HTMLDivElement>(null);
+  const [detectedCurrency, setDetectedCurrency] = useState("")
 
   const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
   const selectedColor = selectedFabric?.colors.find(c => c.name === config.fabricColor);
+
+
+
+  useEffect(()=>{
+    
+  })
+
 
   const updateMeasurement = (edgeKey: string, value: string) => {
     const numericValue = parseFloat(value);
@@ -363,6 +371,9 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
     const svgElement = canvasRef.current?.getSVGElement();
     await handleGeneratePDF(svgElement);
   };
+
+
+  
 
   return (
     <div className="p-6">
