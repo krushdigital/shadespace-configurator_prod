@@ -14,6 +14,7 @@ import {
   getWebbingWidth,
   getWireThickness
 } from '../data/pricing';
+import { FABRICS } from '../data/fabrics';
 
 export function useShadeCalculations(config: ConfiguratorState): ShadeCalculations {
   return useMemo(() => {
@@ -46,6 +47,7 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
         hardwareCost: 0,
         totalPrice: 0,
         webbingWidth: 0
+        totalWeightGrams: 0
       };
     }
     
@@ -119,6 +121,28 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
     const totalPriceRaw = totalNZDWithCurrencyMarkup * exchangeRate;
     const totalPrice = Math.ceil(totalPriceRaw); // Round up to nearest dollar
     
+    // Calculate weight
+    const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
+    const fabricWeightPerSqm = selectedFabric?.weightPerSqm || 370; // Default to Monotec 370 if not found
+    
+    // Round up area to closest square meter
+    const areaSqmRoundedUp = Math.ceil(area);
+    
+    // Calculate total sail weight
+    const totalSailWeightGrams = 
+      (fabricWeightPerSqm * areaSqmRoundedUp) + // Fabric weight
+      (config.corners * 300) + // Fixing points weight
+      (Math.round(perimeterM) * 400) + // Perimeter weight
+      2000; // Buffer weight
+    
+    // Calculate hardware weight (only if "adjust" option is selected)
+    const hardwareWeightGrams = config.measurementOption === 'adjust' 
+      ? config.corners * 500 
+      : 0;
+    
+    // Total weight
+    const totalWeightGrams = totalSailWeightGrams + hardwareWeightGrams;
+    
     return {
       area, // This is in m²
       perimeter: perimeterM, // This is in m
@@ -127,7 +151,8 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
       hardwareCost,
       totalPrice,
       webbingWidth,
-      wireThickness
+      wireThickness,
+      totalWeightGrams
     };
   }, [config]);
 }

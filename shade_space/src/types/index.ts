@@ -31,6 +31,7 @@ export interface ShadeCalculations {
   totalPrice: number;
   webbingWidth: number;
   wireThickness?: number;
+  totalWeightGrams: number;
 }
 
 export type FabricType = 'monotec370' | 'extrablock330' | 'shadetec320';
