@@ -286,3 +286,109 @@ export function getDiagonalKeysForCorners(corners: number): string[] {
   
   return diagonals;
 }
+/**
+ * Calculate the area of a triangle using Heron's formula
+ * @param a Side length in mm
+ * @param b Side length in mm  
+ * @param c Side length in mm
+ * @returns Area in square mm, or 0 if triangle is invalid
+ */
+export function calculateTriangleArea(a: number, b: number, c: number): number {
+  // Check triangle inequality - all sides must be positive and satisfy triangle inequality
+  if (a <= 0 || b <= 0 || c <= 0) return 0;
+  if (a + b <= c || a + c <= b || b + c <= a) return 0;
+  
+  // Calculate semi-perimeter
+  const s = (a + b + c) / 2;
+  
+  // Apply Heron's formula
+  const areaSquared = s * (s - a) * (s - b) * (s - c);
+  
+  // Check for numerical errors (negative area under square root)
+  if (areaSquared < 0) return 0;
+  
+  return Math.sqrt(areaSquared);
+}
+
+/**
+ * Calculate the area of a polygon using triangulation
+ * @param measurements Object containing all edge and diagonal measurements in mm
+ * @param corners Number of corners (3, 4, 5, or 6)
+ * @returns Area in square meters
+ */
+export function calculatePolygonArea(measurements: { [key: string]: number }, corners: number): number {
+  if (corners < 3 || corners > 6) return 0;
+  
+  let totalAreaMm2 = 0;
+  
+  if (corners === 3) {
+    // Triangle: use sides AB, BC, CA
+    const AB = measurements['AB'] || 0;
+    const BC = measurements['BC'] || 0;
+    const CA = measurements['CA'] || 0;
+    
+    if (AB > 0 && BC > 0 && CA > 0) {
+      totalAreaMm2 = calculateTriangleArea(AB, BC, CA);
+    }
+  } else if (corners === 4) {
+    // Quadrilateral: triangulate into ABC and ACD using diagonal AC
+    const AB = measurements['AB'] || 0;
+    const BC = measurements['BC'] || 0;
+    const CD = measurements['CD'] || 0;
+    const DA = measurements['DA'] || 0;
+    const AC = measurements['AC'] || 0;
+    
+    if (AB > 0 && BC > 0 && AC > 0) {
+      totalAreaMm2 += calculateTriangleArea(AB, BC, AC);
+    }
+    if (AC > 0 && CD > 0 && DA > 0) {
+      totalAreaMm2 += calculateTriangleArea(AC, CD, DA);
+    }
+  } else if (corners === 5) {
+    // Pentagon: triangulate into ABC, ACD, ADE using diagonals AC and AD
+    const AB = measurements['AB'] || 0;
+    const BC = measurements['BC'] || 0;
+    const CD = measurements['CD'] || 0;
+    const DE = measurements['DE'] || 0;
+    const EA = measurements['EA'] || 0;
+    const AC = measurements['AC'] || 0;
+    const AD = measurements['AD'] || 0;
+    
+    if (AB > 0 && BC > 0 && AC > 0) {
+      totalAreaMm2 += calculateTriangleArea(AB, BC, AC);
+    }
+    if (AC > 0 && CD > 0 && AD > 0) {
+      totalAreaMm2 += calculateTriangleArea(AC, CD, AD);
+    }
+    if (AD > 0 && DE > 0 && EA > 0) {
+      totalAreaMm2 += calculateTriangleArea(AD, DE, EA);
+    }
+  } else if (corners === 6) {
+    // Hexagon: triangulate into ABC, ACD, ADE, AEF using diagonals AC, AD, AE
+    const AB = measurements['AB'] || 0;
+    const BC = measurements['BC'] || 0;
+    const CD = measurements['CD'] || 0;
+    const DE = measurements['DE'] || 0;
+    const EF = measurements['EF'] || 0;
+    const FA = measurements['FA'] || 0;
+    const AC = measurements['AC'] || 0;
+    const AD = measurements['AD'] || 0;
+    const AE = measurements['AE'] || 0;
+    
+    if (AB > 0 && BC > 0 && AC > 0) {
+      totalAreaMm2 += calculateTriangleArea(AB, BC, AC);
+    }
+    if (AC > 0 && CD > 0 && AD > 0) {
+      totalAreaMm2 += calculateTriangleArea(AC, CD, AD);
+    }
+    if (AD > 0 && DE > 0 && AE > 0) {
+      totalAreaMm2 += calculateTriangleArea(AD, DE, AE);
+    }
+    if (AE > 0 && EF > 0 && FA > 0) {
+      totalAreaMm2 += calculateTriangleArea(AE, EF, FA);
+    }
+  }
+  
+  // Convert from mm² to m²
+  return totalAreaMm2 / 1000000;
+}

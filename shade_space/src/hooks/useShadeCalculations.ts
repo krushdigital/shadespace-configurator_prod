@@ -15,6 +15,7 @@ import {
   getWireThickness
 } from '../data/pricing';
 import { FABRICS } from '../data/fabrics';
+import { calculatePolygonArea } from '../utils/geometry';
 
 export function useShadeCalculations(config: ConfiguratorState): ShadeCalculations {
   return useMemo(() => {
@@ -57,8 +58,8 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
     // Adjusted perimeter (rounded to 0.5m increments)
     const adjustedPerimeter = Math.round(perimeterM / 0.5) * 0.5;
     
-    // Calculate approximate area (simplified square approximation)
-    const area = Math.pow(adjustedPerimeter / 4, 2);
+    // Calculate accurate area using triangulation
+    const area = calculatePolygonArea(config.measurements, config.corners);
     
     // Get webbing width based on perimeter
     const webbingWidth = getWebbingWidth(adjustedPerimeter);
@@ -125,12 +126,12 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
     const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
     const fabricWeightPerSqm = selectedFabric?.weightPerSqm || 370; // Default to Monotec 370 if not found
     
-    // Round up area to closest square meter
-    const areaSqmRoundedUp = Math.ceil(area);
+    // Use actual calculated area (already in m²)
+    const areaSqm = area;
     
     // Calculate total sail weight
     const totalSailWeightGrams = 
-      (fabricWeightPerSqm * areaSqmRoundedUp) + // Fabric weight
+      (fabricWeightPerSqm * areaSqm) + // Fabric weight based on actual area
       (config.corners * 300) + // Fixing points weight
       (Math.round(perimeterM) * 400) + // Perimeter weight
       2000; // Buffer weight
