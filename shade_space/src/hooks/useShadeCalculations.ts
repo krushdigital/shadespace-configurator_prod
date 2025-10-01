@@ -138,7 +138,7 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
     
     // Calculate hardware weight (only if "adjust" option is selected)
     const hardwareWeightGrams = config.measurementOption === 'adjust' 
-      ? config.corners * 500 
+      ? config.corners * 400 
       : 0;
     
     // Total weight
