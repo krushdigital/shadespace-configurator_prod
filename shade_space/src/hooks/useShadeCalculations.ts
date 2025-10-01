@@ -134,7 +134,7 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
       (fabricWeightPerSqm * areaSqm) + // Fabric weight based on actual area
       (config.corners * 300) + // Fixing points weight
       (Math.round(perimeterM) * 400) + // Perimeter weight
-      500; // Buffer weight
+      2000; // Buffer weight
     
     // Calculate hardware weight (only if "adjust" option is selected)
     const hardwareWeightGrams = config.measurementOption === 'adjust' 
