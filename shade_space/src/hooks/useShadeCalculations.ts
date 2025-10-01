@@ -136,8 +136,7 @@ export function useShadeCalculations(config: ConfiguratorState): ShadeCalculatio
     
     // Calculate perimeter weight based on edge type
     const perimeterWeightPerMeter = config.edgeType === 'cabled' ? 140 : 100; // Wire: 140g/m, Webbing: 100g/m
-    const perimeterWeightGrams = Math.round(perimeterM) * perimeterWeightPerMeter;
-      2000; // Buffer weight
+    const perimeterWeightGrams = (Math.round(perimeterM) * perimeterWeightPerMeter) + 2000; // Buffer weight
     
     // Calculate hardware weight (only if "adjust" option is selected)
     const hardwareWeightGrams = config.measurementOption === 'adjust' 
