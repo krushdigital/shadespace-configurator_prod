@@ -546,7 +546,7 @@ export const action = async ({ request }) => {
       {
         id: createdProduct.variants.edges[0]?.node.id,
         price: totalPrice.toString(),
-        chargeTaxes: false, // Ensure no taxes are charged
+        taxable: false, // Ensure no taxes are charged
       },
     ];
 
