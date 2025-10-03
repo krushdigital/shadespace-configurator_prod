@@ -545,11 +545,9 @@ mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsB
       {
         id: createdProduct.variants.edges[0]?.node.id,
         price: totalPrice.toString(),
-        taxable: false, // Ensure no taxes are charged
-        weight: Number(totalWeightGrams), // Set your product's total weight here (number)
-        weightUnit: "GRAMS", // Or "GRAMS", "POUNDS", "OUNCES"
+        taxable: false, 
         inventoryItem: {
-          countryCodeOfOrigin: "NZ", // New Zealand
+          countryCodeOfOrigin: "NZ", 
           harmonizedSystemCode: "63063010",
         },
       },
