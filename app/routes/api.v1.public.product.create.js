@@ -446,7 +446,7 @@ export const action = async ({ request }) => {
       },
       variants: [
     {
-      price: totalPrice.toString()
+      price: totalPrice.toString(),
       taxable: false
     }
   ]
