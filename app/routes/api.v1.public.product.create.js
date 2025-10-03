@@ -443,13 +443,7 @@ export const action = async ({ request }) => {
       seo: {
         title: `${productTitle} | Custom Shade Sails`,
         description: `Custom ${selectedFabric.label} shade sail in ${selectedColor.name}. ${selectedFabric.uvProtection} UV protection, ${selectedFabric.warrantyYears} year warranty. Made in ${selectedFabric.madeIn}.`,
-      },
-      variants: [
-    {
-      price: totalPrice.toString(),
-      taxable: false
-    }
-  ]
+      }
     };
 
     // Execute the product creation mutation
