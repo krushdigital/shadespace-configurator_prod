@@ -562,8 +562,10 @@ mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsB
           countryCodeOfOrigin: "NZ",
           harmonizedSystemCode: "63063010",
           measurement: {
-            weight: Number(totalWeightGrams),
-            weightUnit: "GRAMS",
+            weight: {
+              value: Number(totalWeightGrams),
+              unit: "GRAMS",
+            },
           },
         },
       },
