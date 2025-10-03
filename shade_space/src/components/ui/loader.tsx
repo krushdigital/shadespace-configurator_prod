@@ -60,8 +60,8 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
                 <div className="flex justify-center mb-6">
                     <div className="relative">
                         <div className="w-16 h-16 border-4 border-[#01312D]/20 rounded-full"></div>
-                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-[#BFF102] rounded-full animate-spin">&nbsp;</div>
-                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-b-[#83CC20] rounded-full animate-spin animation-delay-75">&nbsp;</div>
+                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-[#BFF102] rounded-full animate-spin"></div>
+                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-b-[#83CC20] rounded-full animate-spin animation-delay-75"></div>
                     </div>
                 </div>
 

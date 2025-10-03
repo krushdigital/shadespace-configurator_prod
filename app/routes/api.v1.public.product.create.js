@@ -616,7 +616,6 @@ export const action = async ({ request }) => {
       );
     }
 
-
     // Get the complete product with metafields
     const productQuery = `
             query ProductMetafields($ownerId: ID!) {
