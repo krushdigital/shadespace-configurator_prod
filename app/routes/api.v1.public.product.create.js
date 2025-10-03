@@ -176,24 +176,24 @@ export const action = async ({ request }) => {
     ];
 
     const definitionMutation = `
-      mutation CreateMetafieldDefinition($definition: MetafieldDefinitionInput!) {
-        metafieldDefinitionCreate(definition: $definition) {
-          createdDefinition {
-            id
-            name
-            namespace
-            key
-            type {
-              name
-            }
-          }
-          userErrors {
-            field
-            message
-            code
-          }
-        }
-      }`;
+           mutation CreateMetafieldDefinition($definition: MetafieldDefinitionInput!) {
+  metafieldDefinitionCreate(definition: $definition) {
+    createdDefinition {
+      id
+      name
+      namespace
+      key
+      type {
+        name
+      }
+    }
+    userErrors {
+      field
+      message
+      code
+    }
+  }
+}`;
 
     for (const definition of metafieldDefinitions) {
       try {
@@ -243,35 +243,35 @@ export const action = async ({ request }) => {
     const productTitle = `Custom ${selectedFabric.label} Shade Sail - ${selectedColor.name} - ${corners} Corner`;
 
     const productDescription = `
-      <h3>Custom Manufactured Shade Sail</h3>
-      <p>${selectedFabric.detailedDescription}</p>
-      
-      <h4>Specifications:</h4>
-      <ul>
-          <li><strong>Fabric:</strong> ${selectedFabric.label} (${selectedFabric.weightPerSqm}gsm)</li>
-          <li><strong>Color:</strong> ${selectedColor.name}</li>
-          <li><strong>UV Protection:</strong> ${selectedFabric.uvProtection}</li>
-          <li><strong>Shade Factor:</strong> ${selectedColor.shadeFactor}%</li>
-          <li><strong>Area:</strong> ${area}m²</li>
-          <li><strong>Perimeter:</strong> ${perimeter}m</li>
-          <li><strong>Edge Type:</strong> ${edgeType}</li>
-          <li><strong>Corners:</strong> ${corners}</li>
-          <li><strong>Warranty:</strong> ${selectedFabric.warrantyYears} years</li>
-          <li><strong>Made in:</strong> ${selectedFabric.madeIn}</li>
-      </ul>
-      
-      <h4>Key Benefits:</h4>
-      <ul>
-          ${selectedFabric.benefits.map((benefit) => `<li>${benefit}</li>`).join("")}
-      </ul>
-      
-      <h4>Best For:</h4>
-      <ul>
-          ${selectedFabric.bestFor.map((use) => `<li>${use}</li>`).join("")}
-      </ul>
-      
-      <p><strong>Note:</strong> This is a custom manufactured product. Installation not included.</p>
-    `;
+            <h3>Custom Manufactured Shade Sail</h3>
+            <p>${selectedFabric.detailedDescription}</p>
+            
+            <h4>Specifications:</h4>
+            <ul>
+                <li><strong>Fabric:</strong> ${selectedFabric.label} (${selectedFabric.weightPerSqm}gsm)</li>
+                <li><strong>Color:</strong> ${selectedColor.name}</li>
+                <li><strong>UV Protection:</strong> ${selectedFabric.uvProtection}</li>
+                <li><strong>Shade Factor:</strong> ${selectedColor.shadeFactor}%</li>
+                <li><strong>Area:</strong> ${area}m²</li>
+                <li><strong>Perimeter:</strong> ${perimeter}m</li>
+                <li><strong>Edge Type:</strong> ${edgeType}</li>
+                <li><strong>Corners:</strong> ${corners}</li>
+                <li><strong>Warranty:</strong> ${selectedFabric.warrantyYears} years</li>
+                <li><strong>Made in:</strong> ${selectedFabric.madeIn}</li>
+            </ul>
+            
+            <h4>Key Benefits:</h4>
+            <ul>
+                ${selectedFabric.benefits.map((benefit) => `<li>${benefit}</li>`).join("")}
+            </ul>
+            
+            <h4>Best For:</h4>
+            <ul>
+                ${selectedFabric.bestFor.map((use) => `<li>${use}</li>`).join("")}
+            </ul>
+            
+            <p><strong>Note:</strong> This is a custom manufactured product. Installation not included.</p>
+        `;
 
     // Prepare metafields for additional data
     const metafields = [
@@ -398,39 +398,39 @@ export const action = async ({ request }) => {
     ];
 
     const productMutation = `
-      mutation productCreate($input: ProductInput!) {
-        productCreate(input: $input) {
-          product {
-            id
-            title
-            handle
-            status
-            metafields(first: 20, namespace: "shade_sail") {
-              edges {
-                node {
-                  id
-                  namespace
-                  key
-                  value
+            mutation productCreate($input: ProductInput!) {
+                productCreate(input: $input) {
+                    product {
+                        id
+                        title
+                        handle
+                        status
+                        metafields(first: 20, namespace: "shade_sail") {
+                            edges {
+                                node {
+                                    id
+                                    namespace
+                                    key
+                                    value
+                                }
+                            }
+                        }
+                        variants(first: 1) {
+                            edges {
+                                node {
+                                    id
+                                    price
+                                }
+                            }
+                        }
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
                 }
-              }
             }
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                  price
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
+        `;
 
     const productInput = {
       title: productTitle,
@@ -440,34 +440,10 @@ export const action = async ({ request }) => {
       status: "ACTIVE",
       tags: "New Custom Shadesail",
       metafields: metafields,
-      // Set product as non-taxable
-      taxCode: "PRODUCT000000", // Standard non-taxable product code in Shopify
       seo: {
         title: `${productTitle} | Custom Shade Sails`,
         description: `Custom ${selectedFabric.label} shade sail in ${selectedColor.name}. ${selectedFabric.uvProtection} UV protection, ${selectedFabric.warrantyYears} year warranty. Made in ${selectedFabric.madeIn}.`,
       },
-      // Create variant with price and canvas image
-      variants: [
-        {
-          price: totalPrice.toString(),
-          taxable: false, // Explicitly set variant as non-taxable
-          image: canvasImageUrl ? {
-            src: canvasImageUrl,
-            altText: `${productTitle} - Technical Drawing`
-          } : undefined
-        }
-      ],
-      // Add both images to product media (not variant-specific)
-      images: canvasImageUrl || selectedColor.imageUrl ? [
-        ...(canvasImageUrl ? [{
-          src: canvasImageUrl,
-          altText: `${productTitle} - Technical Drawing`
-        }] : []),
-        ...(selectedColor.imageUrl ? [{
-          src: selectedColor.imageUrl,
-          altText: `${selectedFabric.label} - ${selectedColor.name}`
-        }] : [])
-      ] : undefined
     };
 
     // Execute the product creation mutation
@@ -498,94 +474,111 @@ export const action = async ({ request }) => {
       throw new Error("Product creation failed - no product returned");
     }
 
-    // Alternative approach for setting variant image if the above method doesn't work
-    let variantId = createdProduct.variants.edges[0]?.node.id;
-    
-    // If canvas image is available and we have a variant ID, set it as variant image
-    if (canvasImageUrl && variantId) {
+    // Step 4: Add ONLY canvas image (technical drawing) - removed fabric color image
+    if (canvasImageUrl) {
+      const imageMutation = `
+                mutation productCreateMedia($media: [CreateMediaInput!]!, $productId: ID!) {
+                    productCreateMedia(media: $media, productId: $productId) {
+                        media {
+                            id
+                            alt
+                            mediaContentType
+                            status
+                        }
+                        mediaUserErrors {
+                            field
+                            message
+                        }
+                    }
+                }
+            `;
+
+      const mediaInput = {
+        originalSource: canvasImageUrl,
+        alt: `${productTitle} - Technical Drawing`,
+        mediaContentType: "IMAGE",
+      };
+
       try {
-        const variantImageMutation = `
-          mutation productVariantUpdate($input: ProductVariantInput!) {
-            productVariantUpdate(input: $input) {
-              productVariant {
-                id
-                image {
-                  id
-                  src
-                }
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `;
-
-        // First, we need to get the image ID that was created for the canvas image
-        const productWithImagesQuery = `
-          query getProductImages($id: ID!) {
-            product(id: $id) {
-              id
-              images(first: 10) {
-                edges {
-                  node {
-                    id
-                    src
-                    altText
-                  }
-                }
-              }
-            }
-          }
-        `;
-
-        const imagesResponse = await admin.graphql(productWithImagesQuery, {
-          variables: { id: createdProduct.id }
+        const imageResponse = await admin.graphql(imageMutation, {
+          variables: {
+            media: [mediaInput],
+            productId: createdProduct.id,
+          },
         });
-        const imagesResult = await imagesResponse.json();
-        
-        const canvasImage = imagesResult.data?.product?.images?.edges?.find(
-          edge => edge.node.src === canvasImageUrl
-        );
 
-        if (canvasImage) {
-          const variantUpdateResponse = await admin.graphql(variantImageMutation, {
-            variables: {
-              input: {
-                id: variantId,
-                imageId: canvasImage.node.id
-              }
-            }
-          });
-          
-          const variantUpdateResult = await variantUpdateResponse.json();
-          if (variantUpdateResult.data?.productVariantUpdate?.userErrors?.length > 0) {
-            console.warn(
-              "Variant image update errors:",
-              variantUpdateResult.data.productVariantUpdate.userErrors
-            );
-          } else {
-            console.log("Successfully set canvas image as variant image");
-          }
+        const imageResult = await imageResponse.json();
+        if (imageResult.data?.productCreateMedia?.media) {
+          console.log("Canvas image uploaded successfully");
         }
       } catch (error) {
-        console.warn("Error setting variant image:", error);
+        console.error("Error uploading canvas image:", error);
       }
+    }
+
+    // Step 5: Update variant with price and tax settings
+    const bulkVariantMutation = `
+            mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+                productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+                    product {
+                        id
+                    }
+                    productVariants {
+                        id
+                        metafields(first: 2) {
+                            edges {
+                                node {
+                                    namespace
+                                    key
+                                    value
+                                }
+                            }
+                        }
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }`;
+
+    const variantInput = [
+      {
+        id: createdProduct.variants.edges[0]?.node.id,
+        price: totalPrice.toString(),
+        chargeTaxes: false, // Ensure no taxes are charged
+      },
+    ];
+
+    const bulkVariantResponse = await admin.graphql(bulkVariantMutation, {
+      variables: {
+        productId: createdProduct.id,
+        variants: variantInput,
+      },
+    });
+    const bulkVariantResult = await bulkVariantResponse.json();
+
+    if (
+      bulkVariantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0
+    ) {
+      console.error(
+        "Variant bulk update errors:",
+        bulkVariantResult.data.productVariantsBulkUpdate.userErrors,
+      );
     }
 
     // Fetch the Online Store publication ID
     const publicationsQuery = `
-      query {
-        publications(first: 10) {
-          edges {
-            node {
-              id
-              name
-            }
-          }
-        }
-      }`;
+            query {
+                publications(first: 10) {
+                    edges {
+                        node {
+                            id
+                            name
+                        }
+                    }
+                }
+            }`;
     const publicationsResponse = await admin.graphql(publicationsQuery);
     const publicationsResult = await publicationsResponse.json();
     const onlineStorePublication =
@@ -599,22 +592,22 @@ export const action = async ({ request }) => {
 
     // Publish the product to the Online Store
     const publishMutation = `
-      mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
-        publishablePublish(id: $id, input: $input) {
-          publishable {
-            availablePublicationsCount {
-              count
-            }
-            resourcePublicationsCount {
-              count
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`;
+            mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+                publishablePublish(id: $id, input: $input) {
+                    publishable {
+                        availablePublicationsCount {
+                            count
+                        }
+                        resourcePublicationsCount {
+                            count
+                        }
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }`;
 
     const publishResponse = await admin.graphql(publishMutation, {
       variables: {
@@ -635,46 +628,31 @@ export const action = async ({ request }) => {
 
     // Get the complete product with metafields
     const productQuery = `
-      query ProductMetafields($ownerId: ID!) {
-        product(id: $ownerId) {
-          id
-          title
-          handle
-          status
-          taxCode
-          metafields(first: 250, namespace: "shade_sail") {
-            edges {
-              node {
-                namespace
-                key
-                value
-              }
-            }
-          }
-          variants(first: 1) {
-            edges {
-              node {
-                id
-                price
-                taxable
-                image {
-                  src
-                  altText
+            query ProductMetafields($ownerId: ID!) {
+                product(id: $ownerId) {
+                    id
+                    title
+                    handle
+                    status
+                    metafields(first: 250, namespace: "shade_sail") {
+                        edges {
+                            node {
+                                namespace
+                                key
+                                value
+                            }
+                        }
+                    }
+                    variants(first: 1) {
+                        edges {
+                            node {
+                                id
+                                price
+                            }
+                        }
+                    }
                 }
-              }
-            }
-          }
-          images(first: 10) {
-            edges {
-              node {
-                id
-                src
-                altText
-              }
-            }
-          }
-        }
-      }`;
+            }`;
 
     const productResponseFinal = await admin.graphql(productQuery, {
       variables: {
