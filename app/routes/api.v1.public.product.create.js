@@ -526,12 +526,24 @@ mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsB
     }
     productVariants {
       id
-      weight
-      weightUnit
+      metafields(first: 2) {
+        edges {
+          node {
+            namespace
+            key
+            value
+          }
+        }
+      }
       inventoryItem {
-        id
         countryCodeOfOrigin
         harmonizedSystemCode
+        measurement {
+          weight {
+            unit
+            value
+          }
+        }
       }
     }
     userErrors {
@@ -545,10 +557,14 @@ mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsB
       {
         id: createdProduct.variants.edges[0]?.node.id,
         price: totalPrice.toString(),
-        taxable: false, 
+        taxable: false,
         inventoryItem: {
-          countryCodeOfOrigin: "NZ", 
+          countryCodeOfOrigin: "NZ",
           harmonizedSystemCode: "63063010",
+          measurement: {
+            weight: Number(totalWeightGrams),
+            weightUnit: "GRAMS",
+          },
         },
       },
     ];
