@@ -19,6 +19,7 @@ export const action = async ({ request }) => {
       fixingHeights,
       fixingTypes,
       eyeOrientations,
+      totalWeightGrams,
       // Add these missing variables
       edgeMeasurements = {},
       diagonalMeasurementsObj = {},
@@ -518,35 +519,39 @@ export const action = async ({ request }) => {
 
     // Step 5: Update variant with price and tax settings
     const bulkVariantMutation = `
-            mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-                productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-                    product {
-                        id
-                    }
-                    productVariants {
-                        id
-                        metafields(first: 2) {
-                            edges {
-                                node {
-                                    namespace
-                                    key
-                                    value
-                                }
-                            }
-                        }
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }`;
+mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+  productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+    product {
+      id
+    }
+    productVariants {
+      id
+      weight
+      weightUnit
+      inventoryItem {
+        id
+        countryCodeOfOrigin
+        harmonizedSystemCode
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`;
 
     const variantInput = [
       {
         id: createdProduct.variants.edges[0]?.node.id,
         price: totalPrice.toString(),
         taxable: false, // Ensure no taxes are charged
+        weight: Number(totalWeightGrams), // Set your product's total weight here (number)
+        weightUnit: "GRAMS", // Or "GRAMS", "POUNDS", "OUNCES"
+        inventoryItem: {
+          countryCodeOfOrigin: "NZ", // New Zealand
+          harmonizedSystemCode: "63063010",
+        },
       },
     ];
 
