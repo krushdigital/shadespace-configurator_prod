@@ -60,8 +60,8 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
                 <div className="flex justify-center mb-6">
                     <div className="relative">
                         <div className="w-16 h-16 border-4 border-[#01312D]/20 rounded-full"></div>
-                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-[#BFF102] rounded-full animate-spin"></div>
-                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-b-[#83CC20] rounded-full animate-spin animation-delay-75"></div>
+                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-[#BFF102] rounded-full animate-spin">&nbsp;</div>
+                        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-b-[#83CC20] rounded-full animate-spin animation-delay-75">&nbsp;</div>
                     </div>
                 </div>
 
@@ -75,7 +75,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
                         <div
                             className="bg-gradient-to-r from-[#BFF102] to-[#83CC20] h-2 rounded-full transition-all duration-500 ease-out"
                             style={{ width: `${progress}%` }}
-                        ></div>
+                        >&nbsp;</div>
                     </div>
                 </div>
 
@@ -93,8 +93,8 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
                 </div>
 
                 {/* Decorative Elements */}
-                <div className="absolute -top-2 -right-2 w-4 h-4 bg-[#BFF102] rounded-full animate-ping"></div>
-                <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-[#83CC20] rounded-full animate-ping animation-delay-200"></div>
+                <div className="absolute -top-2 -right-2 w-4 h-4 bg-[#BFF102] rounded-full animate-ping">&nbsp;</div>
+                <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-[#83CC20] rounded-full animate-ping animation-delay-200">&nbsp;</div>
             </div>
         </div>
     );
