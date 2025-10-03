@@ -616,54 +616,6 @@ export const action = async ({ request }) => {
       );
     }
 
-    const bulkVariantMutation = ` mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-  productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-    product {
-      id
-    }
-    productVariants {
-      id
-      metafields(first: 2) {
-        edges {
-          node {
-            namespace
-            key
-            value
-          }
-        }
-      }
-    }
-    userErrors {
-      field
-      message
-    }
-  }
-}`;
-
-    const variantInput = [
-      {
-        id: createdProduct.variants.edges[0]?.node.id,
-        price: totalPrice.toString(),
-        taxable: false,
-      },
-    ];
-
-    const bulkVariantResponse = await admin.graphql(bulkVariantMutation, {
-      variables: {
-        productId: createdProduct.id,
-        variants: variantInput,
-      },
-    });
-    const bulkVariantResult = await bulkVariantResponse.json();
-
-    if (
-      bulkVariantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0
-    ) {
-      console.error(
-        "Variant bulk update errors:",
-        bulkVariantResult.data.productVariantsBulkUpdate.userErrors,
-      );
-    }
 
     // Get the complete product with metafields
     const productQuery = `
