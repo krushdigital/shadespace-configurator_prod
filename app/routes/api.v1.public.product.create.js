@@ -19,7 +19,6 @@ export const action = async ({ request }) => {
       fixingHeights,
       fixingTypes,
       eyeOrientations,
-      totalWeightGrams,
       // Add these missing variables
       edgeMeasurements = {},
       diagonalMeasurementsObj = {},
@@ -475,7 +474,10 @@ export const action = async ({ request }) => {
       throw new Error("Product creation failed - no product returned");
     }
 
-    // Step 4: Add ONLY canvas image (technical drawing) - removed fabric color image
+    // Add images to the product
+    const imagePromises = [];
+
+    // Add canvas image (technical drawing)
     if (canvasImageUrl) {
       const imageMutation = `
                 mutation productCreateMedia($media: [CreateMediaInput!]!, $productId: ID!) {
@@ -500,92 +502,59 @@ export const action = async ({ request }) => {
         mediaContentType: "IMAGE",
       };
 
-      try {
-        const imageResponse = await admin.graphql(imageMutation, {
+      imagePromises.push(
+        admin.graphql(imageMutation, {
           variables: {
             media: [mediaInput],
             productId: createdProduct.id,
           },
-        });
-
-        const imageResult = await imageResponse.json();
-        if (imageResult.data?.productCreateMedia?.media) {
-          console.log("Canvas image uploaded successfully");
-        }
-      } catch (error) {
-        console.error("Error uploading canvas image:", error);
-      }
-    }
-
-    // Step 5: Update variant with price and tax settings
-    const bulkVariantMutation = `
-mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-  productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-    product {
-      id
-    }
-    productVariants {
-      id
-      metafields(first: 2) {
-        edges {
-          node {
-            namespace
-            key
-            value
-          }
-        }
-      }
-      inventoryItem {
-        countryCodeOfOrigin
-        harmonizedSystemCode
-        measurement {
-          weight {
-            unit
-            value
-          }
-        }
-      }
-    }
-    userErrors {
-      field
-      message
-    }
-  }
-}`;
-
-    const variantInput = [
-      {
-        id: createdProduct.variants.edges[0]?.node.id,
-        price: totalPrice.toString(),
-        taxable: false,
-        inventoryItem: {
-          countryCodeOfOrigin: "NZ",
-          harmonizedSystemCode: "63063010",
-          measurement: {
-            weight: {
-              value: Number(totalWeightGrams),
-              unit: "GRAMS",
-            },
-          },
-        },
-      },
-    ];
-
-    const bulkVariantResponse = await admin.graphql(bulkVariantMutation, {
-      variables: {
-        productId: createdProduct.id,
-        variants: variantInput,
-      },
-    });
-    const bulkVariantResult = await bulkVariantResponse.json();
-
-    if (
-      bulkVariantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0
-    ) {
-      console.error(
-        "Variant bulk update errors:",
-        bulkVariantResult.data.productVariantsBulkUpdate.userErrors,
+        }),
       );
+    }
+
+    if (selectedColor.imageUrl) {
+      const imageMutation = `
+                mutation productCreateMedia($media: [CreateMediaInput!]!, $productId: ID!) {
+                    productCreateMedia(media: $media, productId: $productId) {
+                        media {
+                            id
+                            alt
+                            mediaContentType
+                            status
+                        }
+                        mediaUserErrors {
+                            field
+                            message
+                        }
+                    }
+                }
+            `;
+
+      const mediaInput = {
+        originalSource: selectedColor.imageUrl,
+        alt: `${selectedFabric.label} - ${selectedColor.name}`,
+        mediaContentType: "IMAGE",
+      };
+
+      imagePromises.push(
+        admin.graphql(imageMutation, {
+          variables: {
+            media: [mediaInput],
+            productId: createdProduct.id,
+          },
+        }),
+      );
+    }
+
+    // Wait for all images to be processed
+    const imageResults = await Promise.all(imagePromises);
+    const processedImages = [];
+
+    for (const imageResponse of imageResults) {
+      const imageResult = await imageResponse.json();
+      if (imageResult.data?.productCreateMedia?.media) {
+        processedImages.push(...imageResult.data.productCreateMedia.media);
+      }
     }
 
     // Fetch the Online Store publication ID
