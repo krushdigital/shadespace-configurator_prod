@@ -11,6 +11,7 @@
     "build:analyze": "vite build --mode analyze"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
     "@types/node": "^24.2.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
