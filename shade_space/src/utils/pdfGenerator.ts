@@ -1,5 +1,3 @@
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { ConfiguratorState, ShadeCalculations } from '../types';
 import { FABRICS } from '../data/fabrics';
 import { formatMeasurement, formatArea, getDiagonalKeysForCorners } from './geometry';
@@ -98,8 +96,12 @@ config: ConfiguratorState, calculations: ShadeCalculations, svgElement?: SVGElem
   console.log('📱 User agent:', navigator.userAgent);
   console.log('📊 Config corners:', config.corners);
   console.log('🖼️ SVG element provided:', !!svgElement);
-  
+
   try {
+    // Dynamic import to avoid build issues
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
+
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
