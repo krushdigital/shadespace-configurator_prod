@@ -50,6 +50,7 @@ export function ShadeConfigurator() {
   const [openStep, setOpenStep] = useState<number>(0);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [typoSuggestions, setTypoSuggestions] = useState<{ [key: string]: number }>({});
+  const [dismissedTypoSuggestions, setDismissedTypoSuggestions] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState<boolean>(false);
   console.log('isMobile: ', isMobile);
   const reviewContentRef = useRef<HTMLDivElement>(null);
@@ -135,6 +136,16 @@ export function ShadeConfigurator() {
 
   const updateConfig = (updates: Partial<ConfiguratorState>) => {
     setConfig(prev => ({ ...prev, ...updates }));
+  };
+
+  const dismissTypoSuggestion = (fieldKey: string) => {
+    const newSuggestions = { ...typoSuggestions };
+    delete newSuggestions[fieldKey];
+    setTypoSuggestions(newSuggestions);
+
+    const newDismissed = new Set(dismissedTypoSuggestions);
+    newDismissed.add(fieldKey);
+    setDismissedTypoSuggestions(newDismissed);
   };
 
   const selectedFabric = FABRICS.find(f => f.id === config.fabricType);
@@ -392,6 +403,7 @@ export function ShadeConfigurator() {
       setIsSendingEmail(false); // ✅ stop loading only after everything finishes
     }
   };
+
 
 
   const handleCancelEmailInput = () => {
@@ -764,9 +776,10 @@ export function ShadeConfigurator() {
   };
 
   const nextStep = () => {
-    // Clear previous validation errors
+    // Clear previous validation errors and dismissed typo tracking
     setValidationErrors({});
     setTypoSuggestions({});
+    setDismissedTypoSuggestions(new Set());
 
     // Perform validation for current step
     const errors: { [key: string]: string } = {};
@@ -886,20 +899,21 @@ export function ShadeConfigurator() {
         break;
     }
 
-    // If there are typo suggestions, prevent progression
-    if (Object.keys(suggestions).length > 0) {
-      errors.typoSuggestions = 'Please address all suggested corrections before continuing.';
-    }
+    // Update typo suggestions state
+    setTypoSuggestions(suggestions);
 
-    // If there are any validation errors, block progression
-    if (Object.keys(errors).length > 0) {
+    // Check for unacknowledged typo suggestions (suggestions that haven't been dismissed or corrected)
+    const unacknowledgedTypos = Object.keys(suggestions).filter(key => !dismissedTypoSuggestions.has(key));
+    const hasUnacknowledgedTypos = unacknowledgedTypos.length > 0;
+
+    // If there are any validation errors OR unacknowledged typo suggestions, block progression
+    if (Object.keys(errors).length > 0 || hasUnacknowledgedTypos) {
       setValidationErrors(errors);
-      setTypoSuggestions(suggestions);
 
       // Scroll to the first error field after a short delay to allow UI updates
       setTimeout(() => {
         // Prioritize scrolling to typo suggestions first
-        if (Object.keys(suggestions).length > 0) {
+        if (hasUnacknowledgedTypos) {
           const typoElement = document.querySelector('.bg-amber-50') ||
             document.querySelector('.border-amber-500');
           if (typoElement) {
@@ -909,7 +923,7 @@ export function ShadeConfigurator() {
               inline: 'nearest'
             });
           }
-        } else {
+        } else if (Object.keys(errors).length > 0) {
           const firstErrorKey = Object.keys(errors)[0];
           if (firstErrorKey) {
             // Try to find and scroll to the first error element
@@ -949,6 +963,10 @@ export function ShadeConfigurator() {
           block: 'start',
           inline: 'nearest'
         });
+        // Offset to account for fixed website header (approx 80px) plus buffer
+        setTimeout(() => {
+          window.scrollBy(0, -100);
+        }, 300);
       }
     }, 350);
   };
@@ -972,9 +990,9 @@ export function ShadeConfigurator() {
           block: 'start',
           inline: 'nearest'
         });
-        // Additional scroll adjustment to ensure proper alignment
+        // Offset to account for fixed website header (approx 80px) plus buffer
         setTimeout(() => {
-          window.scrollBy(0, -20); // Small offset to account for any header spacing
+          window.scrollBy(0, -100);
         }, 300);
       }
     }, 350);
@@ -999,9 +1017,9 @@ export function ShadeConfigurator() {
               block: 'start',
               inline: 'nearest'
             });
-            // Small offset to position accordion header nicely at top
+            // Offset to account for fixed website header (approx 80px) plus buffer
             setTimeout(() => {
-              window.scrollBy(0, -20);
+              window.scrollBy(0, -100);
             }, 300);
           }
         }, 350);
@@ -1182,6 +1200,7 @@ export function ShadeConfigurator() {
                   onPrev={prevStep}
                   setValidationErrors={setValidationErrors}
                   setTypoSuggestions={setTypoSuggestions}
+                  dismissTypoSuggestion={dismissTypoSuggestion}
                   setConfig={setConfig}
                   setOpenStep={setOpenStep}
                   // Pricing and order props for ReviewContent
@@ -1217,7 +1236,7 @@ export function ShadeConfigurator() {
 
         {/* Sticky Diagram for Dimensions Step - Desktop Only */}
         {openStep === 4 && !isMobile && (
-          <div className="hidden lg:block lg:col-span-2 lg:sticky lg:top-8 lg:self-start z-10">
+          <div className="hidden lg:block lg:col-span-2 lg:sticky lg:top-28 lg:self-start z-10">
             <h4 className="text-lg font-semibold text-slate-900 mb-4">
               Interactive Measurement Guide
             </h4>
@@ -1243,7 +1262,7 @@ export function ShadeConfigurator() {
 
         {/* Desktop Pricing Summary - Sticky Sidebar (Dimensions & Review steps) */}
         {(openStep >= 5) && (
-          <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-8 lg:self-start z-10 space-y-4">
+          <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-28 lg:self-start z-10 space-y-4">
             <PriceSummaryDisplay
               config={config}
               calculations={calculations}
