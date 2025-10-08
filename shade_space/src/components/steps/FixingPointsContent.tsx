@@ -19,6 +19,7 @@ interface FixingPointsContentProps {
   onPrev: () => void;
   setValidationErrors?: (errors: {[key: string]: string}) => void;
   setTypoSuggestions?: (suggestions: {[key: string]: number}) => void;
+  dismissTypoSuggestion?: (fieldKey: string) => void;
   nextStepTitle?: string;
   showBackButton?: boolean;
   // Pricing props for mobile summary
@@ -32,18 +33,19 @@ interface FixingPointsContentProps {
   allDiagonalsEntered?: boolean;
 }
 
-export function FixingPointsContent({ 
-  config, 
-  updateConfig, 
+export function FixingPointsContent({
+  config,
+  updateConfig,
   calculations,
-  onNext, 
-  onPrev, 
-  validationErrors = {}, 
+  onNext,
+  onPrev,
+  validationErrors = {},
   typoSuggestions = {},
   nextStepTitle = '',
   showBackButton = false,
   setValidationErrors,
   setTypoSuggestions,
+  dismissTypoSuggestion,
   // Pricing props
   isGeneratingPDF = false,
   handleGeneratePDF = () => {},
@@ -137,18 +139,20 @@ export function FixingPointsContent({
     const hasCorrectLength = config.fixingHeights.length === config.corners &&
                             config.fixingTypes?.length === config.corners &&
                             config.eyeOrientations?.length === config.corners;
-    
+
     if (!hasCorrectLength) return false;
-    
+
     // Check if all heights are greater than 0
     const allHeightsValid = config.fixingHeights.every(height => height > 0);
-    
+
     // Check if all types are selected (not empty string)
     const allTypesValid = config.fixingTypes?.every(type => type === 'post' || type === 'building') || false;
-    
+
     // Check if all orientations are selected (not empty string)
     const allOrientationsValid = config.eyeOrientations?.every(orientation => orientation === 'horizontal' || orientation === 'vertical') || false;
-    
+
+    // For button styling, only check if all required fields are filled
+    // Typo suggestions are treated as warnings and won't block the visual state
     return allHeightsValid && allTypesValid && allOrientationsValid;
   };
 
@@ -244,14 +248,25 @@ export function FixingPointsContent({
                        )
                        : ''}
                       onChange={(e) => {
-                        const numValue = parseFloat(e.target.value);
-                        if (!isNaN(numValue)) {
-                          updateFixingHeight(index, numValue);
-                        } else if (e.target.value === '' && setValidationErrors) {
-                          // Clear validation when field is emptied
-                          const newErrors = { ...validationErrors };
-                          delete newErrors[`height_${index}`];
-                          setValidationErrors(newErrors);
+                        if (e.target.value === '') {
+                          // Allow complete clearing
+                          const newHeights = [...config.fixingHeights];
+                          newHeights[index] = 0;
+                          updateConfig({ fixingHeights: newHeights });
+
+                          if (setValidationErrors && setTypoSuggestions) {
+                            const newErrors = { ...validationErrors };
+                            const newSuggestions = { ...typoSuggestions };
+                            delete newErrors[`height_${index}`];
+                            delete newSuggestions[`height_${index}`];
+                            setValidationErrors(newErrors);
+                            setTypoSuggestions(newSuggestions);
+                          }
+                        } else {
+                          const numValue = parseFloat(e.target.value);
+                          if (!isNaN(numValue)) {
+                            updateFixingHeight(index, numValue);
+                          }
                         }
                       }}
                       placeholder={config.unit === 'imperial' ? '100' : '2500'}
@@ -273,18 +288,26 @@ export function FixingPointsContent({
                   {/* Typo Warning */}
                   {typoSuggestions[`height_${index}`] && (
                     <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex-1">
                           <p className="text-sm text-amber-800">
                             <strong>Possible typo:</strong> Did you mean {formatMeasurement(typoSuggestions[`height_${index}`], config.unit, true)}?
                           </p>
                         </div>
-                        <button
-                          onClick={() => applyTypoCorrection(index)}
-                          className="ml-2 px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 transition-colors"
-                        >
-                          Correct
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => applyTypoCorrection(index)}
+                            className="px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 transition-colors"
+                          >
+                            Correct
+                          </button>
+                          <button
+                            onClick={() => dismissTypoSuggestion?.(`height_${index}`)}
+                            className="px-3 py-1 bg-white border border-amber-600 text-amber-800 text-sm rounded hover:bg-amber-50 transition-colors"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -464,10 +487,10 @@ export function FixingPointsContent({
               Back
             </Button>
           )}
-          <Button 
-            onClick={onNext} 
+          <Button
+            onClick={onNext}
             size="md"
-            className={`flex-1 ${!isStepComplete() ? 'opacity-50' : ''}`}
+            className={`flex-1 ${!isStepComplete() ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Continue to {nextStepTitle}
           </Button>
