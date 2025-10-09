@@ -20,6 +20,8 @@ export const action = async ({ request }) => {
       fixingTypes,
       eyeOrientations,
       totalWeightGrams,
+      measurementOption,
+      hardware_included,
       // Add these missing variables
       edgeMeasurements = {},
       diagonalMeasurementsObj = {},
@@ -31,6 +33,8 @@ export const action = async ({ request }) => {
       Perimeter,
       createdAt,
     } = shadeData;
+
+    console.log(JSON.stringify(shadeData, null, 2));
 
     const metafieldDefinitions = [
       {
@@ -168,6 +172,13 @@ export const action = async ({ request }) => {
         description: "Fabric weight per square meter",
       },
       {
+        name: "Hardware Included",
+        namespace: "shade_sail",
+        key: "hardware_included",
+        type: "single_line_text_field",
+        description: "Whether hardware is included with the shade sail",
+      },
+      {
         name: "Created At",
         namespace: "shade_sail",
         key: "created_at",
@@ -257,6 +268,7 @@ export const action = async ({ request }) => {
                 <li><strong>Perimeter:</strong> ${perimeter}m</li>
                 <li><strong>Edge Type:</strong> ${edgeType}</li>
                 <li><strong>Corners:</strong> ${corners}</li>
+                 <li><strong>Hardware:</strong> ${measurementOption === "adjust" ? "Included" : "Not Included"}</li>
                 <li><strong>Warranty:</strong> ${selectedFabric.warrantyYears} years</li>
                 <li><strong>Made in:</strong> ${selectedFabric.madeIn}</li>
             </ul>
@@ -389,6 +401,14 @@ export const action = async ({ request }) => {
         key: "weight_per_sqm",
         value: selectedFabric?.weightPerSqm?.toString() || "",
         type: "number_integer",
+      },
+      {
+        namespace: "shade_sail",
+        key: "hardware_included",
+        value:
+          hardware_included ||
+          (measurementOption === "adjust" ? "Included" : "Not Included"), // ✅ Use the passed value with fallback
+        type: "single_line_text_field",
       },
       {
         namespace: "shade_sail",
