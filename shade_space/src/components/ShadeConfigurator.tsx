@@ -350,6 +350,7 @@ export function ShadeConfigurator() {
       // Convert amount using Shopify's rate
       const convertedAmount = calculations?.totalPrice * exchangeRate;
       console.log('convertedAmount: ', convertedAmount);
+      
 
       const orderData = {
         fabricType: config.fabricType,

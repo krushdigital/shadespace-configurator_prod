@@ -371,6 +371,7 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
       const hardwareIncluded = config.measurementOption === 'adjust';
       const hardwareText = hardwareIncluded ? 'Included' : 'Not Included';
 
+      
       if (canvasImageUrl) {
         const orderData = {
           fabricType: config.fabricType,

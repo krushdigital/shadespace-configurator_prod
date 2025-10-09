@@ -207,6 +207,7 @@ export const action = async ({ request }) => {
   }
 }`;
 
+
     for (const definition of metafieldDefinitions) {
       try {
         const definitionResponse = await admin.graphql(definitionMutation, {
