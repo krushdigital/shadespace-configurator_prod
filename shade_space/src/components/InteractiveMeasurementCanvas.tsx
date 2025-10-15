@@ -1,4 +1,4 @@
-import React, { useState, useCallback, forwardRef, useRef, useImperativeHandle, useMemo } from 'react';
+import React, { useState, useCallback, forwardRef, useRef, useImperativeHandle, useMemo, useEffect } from 'react';
 import { ConfiguratorState } from '../types';
 import { convertMmToUnit, convertUnitToMm } from '../utils/geometry';
 import { ShadeSVGCore } from './ShadeSVGCore';
@@ -34,6 +34,18 @@ export const InteractiveMeasurementCanvas = forwardRef<InteractiveMeasurementCan
   const [editingMeasurementKey, setEditingMeasurementKey] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
   const [editingPosition, setEditingPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showCornerPulse, setShowCornerPulse] = useState(true);
+
+  useEffect(() => {
+    if (!readonly && !forPdfCapture) {
+      const timer = setTimeout(() => {
+        setShowCornerPulse(false);
+      }, 8000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowCornerPulse(false);
+    }
+  }, [readonly, forPdfCapture]);
 
   // Expose the SVG element to parent components
   useImperativeHandle(ref, () => ({
@@ -144,6 +156,21 @@ export const InteractiveMeasurementCanvas = forwardRef<InteractiveMeasurementCan
           {cornerPoints.map(({ point, index, labelPosition, cornerColor, label }) => {
             return (
               <g key={index}>
+                {/* Pulse effect circle - only shown during animation */}
+                {showCornerPulse && !readonly && !forPdfCapture && (
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={isMobile ? "18" : "10"}
+                    fill={cornerColor}
+                    stroke="none"
+                    className={isMobile ? "corner-pulse-mobile" : "corner-pulse"}
+                    style={{
+                      pointerEvents: 'none'
+                    }}
+                  />
+                )}
+                {/* Main corner point */}
                 <circle
                   cx={point.x}
                   cy={point.y}
@@ -152,13 +179,17 @@ export const InteractiveMeasurementCanvas = forwardRef<InteractiveMeasurementCan
                   stroke="white"
                   strokeWidth="3"
                   className="drop-shadow-sm"
+                  style={{
+                    cursor: readonly ? 'default' : 'grab'
+                  }}
+                  aria-label={`Draggable corner point ${label}`}
                 />
                 <text
                   x={labelPosition.x}
                   y={labelPosition.y}
                   fontSize={isMobile ? "24" : "16"}
                   className="fill-slate-900 font-bold pointer-events-none select-none"
-                  style={{ 
+                  style={{
                     filter: 'drop-shadow(0 1px 2px rgba(255,255,255,0.8))'
                   }}
                 >

@@ -27,6 +27,7 @@ async function getAccessToken() {
 export async function sendMicrosoftEmail({ to, subject, html, pdf, filename }) {
   const token = await getAccessToken();
 
+  // Build the base email body
   const emailBody = {
     message: {
       subject,
@@ -35,16 +36,20 @@ export async function sendMicrosoftEmail({ to, subject, html, pdf, filename }) {
         content: html,
       },
       toRecipients: [{ emailAddress: { address: to } }],
-      attachments: [
-        {
-          "@odata.type": "#microsoft.graph.fileAttachment",
-          name: filename,
-          contentBytes: pdf.includes(",") ? pdf.split(",")[1] : pdf,
-        },
-      ],
     },
     saveToSentItems: true,
   };
+
+  // Only add attachments if PDF is provided and valid
+  if (pdf && typeof pdf === 'string' && pdf.length > 0) {
+    emailBody.message.attachments = [
+      {
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: filename || "document.pdf",
+        contentBytes: pdf.includes(",") ? pdf.split(",")[1] : pdf,
+      },
+    ];
+  }
 
   const response = await fetch(
     `https://graph.microsoft.com/v1.0/users/${process.env.SENDER_EMAIL}/sendMail`,

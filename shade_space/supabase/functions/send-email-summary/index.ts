@@ -231,6 +231,44 @@ serve(async (req: Request) => {
       );
     }
 
+    // Add customer to Shopify
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+    let shopifyCustomerId: string | null = null;
+    let shopifyCustomerCreated = false;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const shopifyResponse = await fetch(
+          `${supabaseUrl}/functions/v1/add-shopify-customer`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: email,
+              tags: ['quote_saved', 'email_summary_requested'],
+              totalPrice: totalPrice,
+              currency: currency,
+            }),
+          }
+        );
+
+        const shopifyData = await shopifyResponse.json();
+
+        if (shopifyData.success) {
+          shopifyCustomerId = shopifyData.customer.id;
+          shopifyCustomerCreated = shopifyData.customer.isNew;
+        }
+      } catch (shopifyError) {
+        console.error('Failed to add customer to Shopify:', shopifyError);
+        // Continue even if Shopify integration fails
+      }
+    }
+
     // Generate email HTML with proper currency formatting
     const emailHTML = generateEmailHTML(data);
 
@@ -239,7 +277,9 @@ serve(async (req: Request) => {
     const SMTP_PORT = Deno.env.get('SMTP_PORT');
     const SMTP_USER = Deno.env.get('SMTP_USER');
     const SMTP_PASS = Deno.env.get('SMTP_PASS');
-    const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'quotes@shadespace.com';
+    const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'sails@shadespace.com';
+
+    console.log({SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, FROM_EMAIL})
 
     if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
       console.error('SMTP credentials not configured');
@@ -262,15 +302,17 @@ serve(async (req: Request) => {
     // TODO: Implement actual email sending using nodemailer or similar
     // For now, return success
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: `Quote summary sent to ${email} with price in ${currency}`,
+        shopifyCustomerCreated: shopifyCustomerCreated,
+        shopifyCustomerId: shopifyCustomerId,
         // Include HTML for debugging
         debug: { emailHTML: emailHTML.substring(0, 500) + '...' }
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 

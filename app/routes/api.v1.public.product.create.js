@@ -32,6 +32,10 @@ export const action = async ({ request }) => {
       Area,
       Perimeter,
       createdAt,
+      backendEdgeMeasurements = {},
+      backendDiagonalMeasurements = {},
+      backendAnchorMeasurements = {},
+      originalUnit 
     } = shadeData;
 
     console.log(JSON.stringify(shadeData, null, 2));
@@ -185,6 +189,34 @@ export const action = async ({ request }) => {
         type: "date_time",
         description: "When the custom product was created",
       },
+       {
+        name: "Backend Edge Measurements",
+        namespace: "shade_sail",
+        key: "backend_edge_measurements",
+        type: "json",
+        description: "Dual unit edge measurements for fulfillment team (metric first)",
+      },
+      {
+        name: "Backend Diagonal Measurements",
+        namespace: "shade_sail", 
+        key: "backend_diagonal_measurements",
+        type: "json",
+        description: "Dual unit diagonal measurements for fulfillment team (metric first)",
+      },
+      {
+        name: "Backend Anchor Measurements",
+        namespace: "shade_sail",
+        key: "backend_anchor_measurements", 
+        type: "json",
+        description: "Dual unit anchor measurements for fulfillment team (metric first)",
+      },
+      {
+        name: "Original Unit",
+        namespace: "shade_sail",
+        key: "original_unit",
+        type: "single_line_text_field",
+        description: "Original measurement unit selected by customer",
+      }
     ];
 
     const definitionMutation = `
@@ -416,6 +448,30 @@ export const action = async ({ request }) => {
         key: "created_at",
         value: createdAt || new Date().toISOString(),
         type: "date_time",
+      },
+        {
+        namespace: "shade_sail",
+        key: "backend_edge_measurements",
+        value: JSON.stringify(backendEdgeMeasurements),
+        type: "json",
+      },
+      {
+        namespace: "shade_sail",
+        key: "backend_diagonal_measurements",
+        value: JSON.stringify(backendDiagonalMeasurements),
+        type: "json",
+      },
+      {
+        namespace: "shade_sail",
+        key: "backend_anchor_measurements",
+        value: JSON.stringify(backendAnchorMeasurements),
+        type: "json",
+      },
+      {
+        namespace: "shade_sail",
+        key: "original_unit",
+        value: originalUnit,
+        type: "single_line_text_field",
       },
     ];
 

@@ -6,7 +6,7 @@ import { Input } from '../ui/Input';
 import { PriceSummaryDisplay } from '../PriceSummaryDisplay';
 import { InteractiveMeasurementCanvas, InteractiveMeasurementCanvasRef } from '../InteractiveMeasurementCanvas';
 import { FABRICS } from '../../data/fabrics';
-import { convertMmToUnit, formatMeasurement, formatArea, validatePolygonGeometry } from '../../utils/geometry';
+import { convertMmToUnit, formatMeasurement, formatArea, validatePolygonGeometry, formatDualMeasurement, getDualMeasurementValues, getDiagonalKeysForCorners } from '../../utils/geometry';
 import { formatCurrency } from '../../utils/currencyFormatter';
 
 interface ReviewContentProps {
@@ -43,6 +43,8 @@ interface ReviewContentProps {
   loading: boolean
   setLoading: (loading: boolean) => void;
   setShowLoadingOverlay: (loading: boolean) => void;
+  quoteReference?: string | null;
+  onSaveQuote?: () => void;
 }
 
 export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
@@ -391,6 +393,34 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
         };
       });
 
+      // Create backend-only dual measurement objects for Shopify admin
+      const backendEdgeMeasurements: Record<string, string> = {};
+      for (let i = 0; i < config.corners; i++) {
+        const nextIndex = (i + 1) % config.corners;
+        const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
+        const measurement = config.measurements[edgeKey];
+        if (measurement && measurement > 0) {
+          backendEdgeMeasurements[edgeKey] = formatDualMeasurement(measurement, config.unit);
+        }
+      }
+
+      const backendDiagonalMeasurements: Record<string, string> = {};
+      // Reuse diagonalKeys already declared above
+      diagonalKeys.forEach(key => {
+        const measurement = config.measurements[key];
+        if (measurement && measurement > 0) {
+          backendDiagonalMeasurements[key] = formatDualMeasurement(measurement, config.unit);
+        }
+      });
+
+      const backendAnchorMeasurements: Record<string, string> = {};
+      config.fixingHeights.forEach((height, index) => {
+        const corner = String.fromCharCode(65 + index);
+        if (height && height > 0) {
+          backendAnchorMeasurements[corner] = formatDualMeasurement(height, config.unit);
+        }
+      });
+
       const hardwareIncluded = config.measurementOption === 'adjust';
       const hardwareText = hardwareIncluded ? 'Included' : 'Not Included';
 
@@ -415,7 +445,8 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
           warranty: selectedFabric?.warrantyYears || "",
           fixingHeights: config.fixingHeights,
           fixingTypes: config.fixingTypes,
-          eyeOrientations: config.eyeOrientations,
+          fixingPointsInstalled: config.fixingPointsInstalled,
+          ...(config.fixingPointsInstalled === true && { eyeOrientations: config.eyeOrientations }),
           // Add the properly calculated measurements
           edgeMeasurements: edgeMeasurements,
           diagonalMeasurementsObj: diagonalMeasurementsObj,
@@ -430,7 +461,12 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
             : calculations?.wireThickness !== undefined ? `${calculations.wireThickness}mm` : 'N/A',
           Area: formatArea(calculations.area * 1000000, config.unit),
           Perimeter: formatMeasurement(calculations.perimeter * 1000, config.unit),
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          // Add dual measurements for backend/fulfillment
+          backendEdgeMeasurements,
+          backendDiagonalMeasurements,
+          backendAnchorMeasurements,
+          originalUnit: config.unit
         };
 
         handleAddToCart(orderData);
@@ -523,6 +559,12 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 <div className="flex justify-between">
                   <span className="text-slate-600">Corners:</span>
                   <span className="font-medium text-slate-900">{config.corners}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Fixing Points Installed:</span>
+                  <span className="font-medium text-slate-900">
+                    {config.fixingPointsInstalled === true ? 'Yes - Already Installed' : config.fixingPointsInstalled === false ? 'No - Planning Installation' : 'Not specified'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Area:</span>
@@ -672,7 +714,7 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                   {config.fixingHeights.map((height, index) => {
                     const corner = String.fromCharCode(65 + index);
                     const type = config.fixingTypes?.[index] || 'post';
-                    const orientation = config.eyeOrientations?.[index] || 'horizontal';
+                    const orientation = config.eyeOrientations?.[index];
 
                     return (
                       <div key={index} className="flex justify-between">
@@ -680,6 +722,9 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                         <div className="text-right">
                           <div className="font-medium text-slate-900">
                             {formatMeasurement(height, config.unit)}
+                            {' ('}{type}
+                            {config.fixingPointsInstalled === true && orientation && `, ${orientation} eye`}
+                            {')'}
                           </div>
                         </div>
                       </div>
@@ -816,11 +861,11 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
               <span className="ml-2 text-emerald-600">✓</span>
             )}
           </h4>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-start">
+          <div className="space-y-4 text-sm">
+            <div className="flex items-start gap-3 p-2 -ml-2 rounded hover:bg-slate-50 transition-colors">
               <input
                 type="checkbox"
-                className="mt-1 mr-3"
+                className="acknowledgment-checkbox mt-0.5"
                 checked={acknowledgments.customManufactured}
                 onChange={() => handleAcknowledgmentChange('customManufactured')}
                 required
@@ -835,10 +880,10 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 I understand that this shade sail will be custom manufactured to my specifications and cannot be returned or exchanged.
               </span>
             </div>
-            <div className="flex items-start">
+            <div className="flex items-start gap-3 p-2 -ml-2 rounded hover:bg-slate-50 transition-colors">
               <input
                 type="checkbox"
-                className="mt-1 mr-3"
+                className="acknowledgment-checkbox mt-0.5"
                 checked={acknowledgments.measurementsAccurate}
                 onChange={() => handleAcknowledgmentChange('measurementsAccurate')}
                 required
@@ -853,10 +898,10 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 I confirm that all measurements provided are accurate and have been verified on-site.
               </span>
             </div>
-            <div className="flex items-start">
+            <div className="flex items-start gap-3 p-2 -ml-2 rounded hover:bg-slate-50 transition-colors">
               <input
                 type="checkbox"
-                className="mt-1 mr-3"
+                className="acknowledgment-checkbox mt-0.5"
                 checked={acknowledgments.installationNotIncluded}
                 onChange={() => handleAcknowledgmentChange('installationNotIncluded')}
                 required
@@ -871,10 +916,10 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                 I acknowledge that installation is not included and I am responsible for proper installation according to provided guidelines.
               </span>
             </div>
-            <div className="flex items-start">
+            <div className="flex items-start gap-3 p-2 -ml-2 rounded hover:bg-slate-50 transition-colors">
               <input
                 type="checkbox"
-                className="mt-1 mr-3"
+                className="acknowledgment-checkbox mt-0.5"
                 checked={acknowledgments.structuralResponsibility}
                 onChange={() => handleAcknowledgmentChange('structuralResponsibility')}
                 required

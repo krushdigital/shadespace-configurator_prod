@@ -34,6 +34,7 @@ interface DimensionsContentProps {
   hasAllEdgeMeasurements?: boolean;
   isMobile?: boolean;
   highlightedMeasurement?: string | null;
+  onSaveQuote?: () => void;
 }
 
 export function DimensionsContent({
@@ -59,7 +60,8 @@ export function DimensionsContent({
   handleEmailSummary = () => {},
   hasAllEdgeMeasurements = false,
   isMobile = false,
-  highlightedMeasurement = null
+  highlightedMeasurement = null,
+  onSaveQuote = () => {}
 }: DimensionsContentProps) {
 
   const updateMeasurement = (edgeKey: string, value: string) => {
@@ -265,13 +267,11 @@ export function DimensionsContent({
                    
                    {/* Typo Warning */}
                    {typoSuggestions[edgeKey] && (
-                     <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                       <div className="flex items-center justify-between gap-2">
-                         <div className="flex-1">
-                           <p className="text-sm text-amber-800">
-                            <strong>Possible typo:</strong> Did you mean {formatMeasurement(typoSuggestions[edgeKey], config.unit, true)}?
-                           </p>
-                         </div>
+                     <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                       <div className="flex flex-col gap-2">
+                         <p className="text-sm text-amber-800 w-full">
+                          <strong>Possible typo:</strong> Did you mean {formatMeasurement(typoSuggestions[edgeKey], config.unit, true)}?
+                         </p>
                          <div className="flex gap-2">
                            <button
                             onClick={() => applyEdgeTypoCorrection(edgeKey)}
@@ -297,23 +297,6 @@ export function DimensionsContent({
               {config.corners >= 4 && config.corners <= 6 && (
                 <>
                 <div className="pt-3 border-t border-[#307C31]/30">
-                  {/* Informational Banner */}
-                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="text-sm text-blue-900 font-medium mb-1">
-                          Get Your Price Now, Add Diagonals Later
-                        </p>
-                        <p className="text-xs text-blue-800">
-                          Diagonal measurements are <strong>optional at this step</strong>. You can continue to see your pricing immediately. They'll be required at checkout for manufacturing accuracy.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="flex items-center gap-2 mb-2">
                     <div className="flex flex-col">
                       <h5 className="text-sm md:text-base font-medium text-[#01312D]">
@@ -412,13 +395,11 @@ export function DimensionsContent({
                           
                           {/* Typo Warning */}
                           {typoSuggestions[key] && (
-                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex-1">
-                                  <p className="text-sm text-amber-800">
-                                    <strong>Possible typo:</strong> Did you mean {formatMeasurement(typoSuggestions[key], config.unit)}?
-                                  </p>
-                                </div>
+                            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <div className="flex flex-col gap-2">
+                                <p className="text-sm text-amber-800 w-full">
+                                  <strong>Possible typo:</strong> Did you mean {formatMeasurement(typoSuggestions[key], config.unit)}?
+                                </p>
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => applyTypoCorrection(key)}
@@ -478,66 +459,108 @@ export function DimensionsContent({
       </div>
 
       <div className="flex flex-col gap-4 pt-4 border-t border-slate-200 mt-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {showBackButton && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPrev}
-              className="sm:w-auto"
-            >
-              Back
-            </Button>
-          )}
-          <div className="flex-1 flex flex-col gap-2">
-            {(() => {
-              if (config.corners === 0) {
-                return null;
-              }
+        {(() => {
+          if (config.corners === 0) {
+            return null;
+          }
 
-              let edgeCount = 0;
-              for (let i = 0; i < config.corners; i++) {
-                const nextIndex = (i + 1) % config.corners;
-                const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
-                const measurement = config.measurements[edgeKey];
-                if (measurement && measurement > 0) {
-                  edgeCount++;
-                }
-              }
+          let edgeCount = 0;
+          for (let i = 0; i < config.corners; i++) {
+            const nextIndex = (i + 1) % config.corners;
+            const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
+            const measurement = config.measurements[edgeKey];
+            if (measurement && measurement > 0) {
+              edgeCount++;
+            }
+          }
 
-              const hasUnacknowledgedTypos = Object.keys(typoSuggestions).length > 0;
-              const missingCount = config.corners - edgeCount;
-              const shouldDisable = edgeCount !== config.corners || hasUnacknowledgedTypos;
+          const hasUnacknowledgedTypos = Object.keys(typoSuggestions).length > 0;
+          const missingCount = config.corners - edgeCount;
+          const shouldDisable = edgeCount !== config.corners || hasUnacknowledgedTypos;
 
-              return (
-                <>
-                  {shouldDisable && (
-                    <div className="text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                      {hasUnacknowledgedTypos ? (
-                        <span className="flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 text-amber-500" />
-                          <span>Please review and address the measurement warnings above</span>
-                        </span>
-                      ) : missingCount > 0 ? (
-                        <span className="flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 text-slate-500" />
-                          <span>{missingCount} edge measurement{missingCount !== 1 ? 's' : ''} required to continue</span>
-                        </span>
-                      ) : null}
+          const hasQuote = calculations.totalPrice > 0 && edgeCount === config.corners;
+
+          return (
+            <>
+              {shouldDisable && (
+                <div className="text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                  {hasUnacknowledgedTypos ? (
+                    <span className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                      <span>Please review and address the measurement warnings above</span>
+                    </span>
+                  ) : missingCount > 0 ? (
+                    <span className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-slate-500" />
+                      <span>{missingCount} edge measurement{missingCount !== 1 ? 's' : ''} required to continue</span>
+                    </span>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Quote Ready Message with Action Buttons - Desktop Only */}
+              {hasQuote && !isMobile && (
+                <div className="bg-[#BFF102]/10 border border-[#307C31]/30 rounded-lg p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="flex-shrink-0 w-10 h-10 bg-[#307C31] rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
                     </div>
-                  )}
+                    <div className="flex-1">
+                      <h4 className="font-bold text-[#01312D] text-lg mb-1">
+                        Your Quote is Ready!
+                      </h4>
+                      <p className="text-sm text-[#01312D]/80">
+                        Continue to complete your order requirements, or save your quote to return later.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onSaveQuote}
+                      className="w-full"
+                    >
+                      Save Quote
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleGeneratePDF}
+                      disabled={isGeneratingPDF}
+                      className="w-full"
+                    >
+                      {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                {showBackButton && (
                   <Button
-                    onClick={onNext}
+                    variant="outline"
                     size="md"
-                    className={shouldDisable ? 'opacity-50 cursor-not-allowed' : ''}
+                    onClick={onPrev}
+                    className="sm:w-auto"
                   >
-                    Continue to {nextStepTitle}
+                    Back
                   </Button>
-                </>
-              );
-            })()}
-          </div>
-        </div>
+                )}
+                <Button
+                  onClick={onNext}
+                  size="md"
+                  className={`flex-1 ${shouldDisable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Continue to {nextStepTitle}
+                </Button>
+              </div>
+            </>
+          );
+        })()}
       </div>
     </div>
   );

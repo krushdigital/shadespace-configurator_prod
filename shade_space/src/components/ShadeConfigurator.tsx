@@ -14,13 +14,17 @@ import { useShadeCalculations } from '../hooks/useShadeCalculations';
 import { ConfiguratorState, FabricType, EdgeType } from '../types';
 import { FABRICS } from '../data/fabrics';
 import { Point } from '../types';
-import { validateMeasurements, validateHeights, getDiagonalKeysForCorners } from '../utils/geometry';
+import { validateMeasurements, validateHeights, getDiagonalKeysForCorners, formatDualMeasurement, getDualMeasurementValues } from '../utils/geometry';
 import { generatePDF } from '../utils/pdfGenerator';
 import { ShapeCanvas } from './ShapeCanvas';
 import { EXCHANGE_RATES } from '../data/pricing'; // Import EXCHANGE_RATES to check supported currencies
 import { formatMeasurement, formatArea } from '../utils/geometry';
 import { useToast } from "../components/ui/ToastProvider";
 import { LoadingOverlay } from './ui/loader';
+import { SaveQuoteModal } from './SaveQuoteModal';
+import { MobilePricingBar } from './MobilePricingBar';
+import { getQuoteIdFromUrl, getQuoteById, updateQuoteStatus, markQuoteConverted } from '../utils/quoteManager';
+import { analytics } from '../utils/analytics';
 
 const INITIAL_STATE: ConfiguratorState = {
   step: 0,
@@ -40,6 +44,7 @@ const INITIAL_STATE: ConfiguratorState = {
   fixingHeights: [],
   fixingTypes: undefined,
   eyeOrientations: undefined,
+  fixingPointsInstalled: undefined,
   currency: 'NZD'
 };
 
@@ -73,8 +78,18 @@ export function ShadeConfigurator() {
     progress: 0
   });
 
+  // Quote management state
+  const [showSaveQuoteModal, setShowSaveQuoteModal] = useState(false);
+  const [quoteReference, setQuoteReference] = useState<string | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+
   // Highlighted measurement state for sticky diagram
   const [highlightedMeasurement, setHighlightedMeasurement] = useState<string | null>(null);
+
+  // Mobile pricing bar state
+  const [isBarLocked, setIsBarLocked] = useState(false);
+  const [isNewQuote, setIsNewQuote] = useState(false);
+  const [previousTotalPrice, setPreviousTotalPrice] = useState(0);
 
   // Canvas ref for PDF generation
   const canvasRef = useRef<any>(null);
@@ -98,6 +113,89 @@ export function ShadeConfigurator() {
       window.removeEventListener('resize', checkIsMobile);
     };
   }, []);
+
+  // Load saved quote from URL if present
+  useEffect(() => {
+    const loadQuoteFromUrl = async () => {
+      const quoteId = getQuoteIdFromUrl();
+      if (!quoteId) return;
+
+      setIsLoadingQuote(true);
+
+      // Track load attempt
+      analytics.quoteLoadAttempted({
+        quote_id: quoteId,
+        source: 'url_parameter',
+      });
+
+      try {
+        const quote = await getQuoteById(quoteId);
+
+        // Calculate quote age
+        const createdAt = new Date(quote.created_at);
+        const quoteAgeHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+        // Restore configuration
+        setConfig(quote.config_data);
+        setQuoteReference(quote.quote_reference);
+
+        // Jump to step 4 (where pricing is visible)
+        setOpenStep(4);
+
+        // Track successful load
+        analytics.quoteLoadSuccess({
+          quote_reference: quote.quote_reference,
+          quote_age_hours: quoteAgeHours,
+          landing_step: 4,
+          had_email: !!quote.customer_email,
+          total_price: quote.calculations_data.totalPrice,
+          currency: quote.config_data.currency,
+        });
+
+        showToast(`Quote ${quote.quote_reference} loaded successfully!`, 'success');
+      } catch (error: any) {
+        console.error('Failed to load quote:', error);
+
+        analytics.quoteLoadFailed({
+          quote_id: quoteId,
+          error_message: error?.message || 'Unknown error',
+          error_type: error?.name || 'LoadError',
+        });
+
+        showToast('Failed to load quote. Please check the link and try again.', 'error');
+      } finally {
+        setIsLoadingQuote(false);
+      }
+    };
+
+    loadQuoteFromUrl();
+  }, []);
+
+  // Manage mobile pricing bar lock and new quote detection
+  useEffect(() => {
+    if (isMobile && openStep === 4 && calculations.totalPrice > 0 && previousTotalPrice === 0) {
+      // Quote just became available for the first time
+      setIsNewQuote(true);
+      setIsBarLocked(true);
+
+      // Set a timer to unlock after 15 seconds
+      const unlockTimer = setTimeout(() => {
+        setIsBarLocked(false);
+        setIsNewQuote(false);
+      }, 15000);
+
+      return () => clearTimeout(unlockTimer);
+    } else if (calculations.totalPrice === 0) {
+      // Reset when price goes back to 0
+      setIsNewQuote(false);
+      setIsBarLocked(false);
+    }
+
+    // Update previous price for next comparison
+    if (calculations.totalPrice !== previousTotalPrice) {
+      setPreviousTotalPrice(calculations.totalPrice);
+    }
+  }, [calculations.totalPrice, openStep, isMobile, previousTotalPrice]);
 
   /*
   // IP-based currency detection effect
@@ -262,7 +360,7 @@ export function ShadeConfigurator() {
     }
   };
 
-const handleEmailSummary = async () => {
+  const handleEmailSummary = async () => {
     try {
       if (!showEmailInput) {
         setShowEmailInput(true);
@@ -341,6 +439,33 @@ const handleEmailSummary = async () => {
         };
       });
 
+      // Create backend-only dual measurement objects for email to fulfillment team
+      const backendEdgeMeasurementsEmail: Record<string, string> = {};
+      for (let i = 0; i < config.corners; i++) {
+        const nextIndex = (i + 1) % config.corners;
+        const edgeKey = `${String.fromCharCode(65 + i)}${String.fromCharCode(65 + nextIndex)}`;
+        const measurement = config.measurements[edgeKey];
+        if (measurement && measurement > 0) {
+          backendEdgeMeasurementsEmail[edgeKey] = formatDualMeasurement(measurement, config.unit);
+        }
+      }
+
+      const backendDiagonalMeasurementsEmail: Record<string, string> = {};
+      diagonalKeys.forEach(key => {
+        const measurement = config.measurements[key];
+        if (measurement && measurement > 0) {
+          backendDiagonalMeasurementsEmail[key] = formatDualMeasurement(measurement, config.unit);
+        }
+      });
+
+      const backendAnchorMeasurementsEmail: Record<string, string> = {};
+      config.fixingHeights.forEach((height, index) => {
+        const corner = String.fromCharCode(65 + index);
+        if (height && height > 0) {
+          backendAnchorMeasurementsEmail[corner] = formatDualMeasurement(height, config.unit);
+        }
+      });
+
       const userCurrency = window.Shopify?.currency?.active || 'USD';
       console.log('userCurrency: ', userCurrency);
 
@@ -367,7 +492,8 @@ const handleEmailSummary = async () => {
         warranty: selectedFabric?.warrantyYears || "",
         fixingHeights: config.fixingHeights,
         fixingTypes: config.fixingTypes,
-        eyeOrientations: config.eyeOrientations,
+        fixingPointsInstalled: config.fixingPointsInstalled,
+        ...(config.fixingPointsInstalled === true && { eyeOrientations: config.eyeOrientations }),
         edgeMeasurements,
         diagonalMeasurementsObj,
         anchorPointMeasurements,
@@ -386,7 +512,12 @@ const handleEmailSummary = async () => {
         Area: formatArea(calculations.area * 1000000, config.unit),
         Perimeter: formatMeasurement(calculations.perimeter * 1000, config.unit),
         canvasImage: canvasImageUrl,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        // Add dual measurements for backend/fulfillment team emails
+        backendEdgeMeasurements: backendEdgeMeasurementsEmail,
+        backendDiagonalMeasurements: backendDiagonalMeasurementsEmail,
+        backendAnchorMeasurements: backendAnchorMeasurementsEmail,
+        originalUnit: config.unit
       };
 
       const response = await fetch(
@@ -400,17 +531,55 @@ const handleEmailSummary = async () => {
       const data = await response.json();
 
       if (data.success) {
+        const emailDomain = email.split('@')[1] || 'unknown';
+
+        // Track email summary sent
+        analytics.emailSummaryWithShopify({
+          email_domain: emailDomain,
+          includes_pdf: !!pdf,
+          includes_canvas: !!canvasImageUrl,
+          total_price: calculations.totalPrice,
+          currency: config.currency,
+          shopify_customer_created: data.shopifyCustomerCreated || false,
+          shopify_customer_id: data.shopifyCustomerId,
+        });
+
+        // Track Shopify customer creation if it happened
+        if (data.shopifyCustomerCreated && data.shopifyCustomerId) {
+          analytics.shopifyCustomerCreated({
+            customer_id: data.shopifyCustomerId,
+            email_domain: emailDomain,
+            source: 'email_summary',
+            tags: ['quote_saved', 'email_summary_requested'],
+            total_quote_value: calculations.totalPrice,
+            currency: config.currency,
+          });
+        }
+
         showToast(data.message, "success");
         setShowEmailInput(false);
         setEmail('');
       } else {
+        const emailDomain = email.split('@')[1] || 'unknown';
+
+        analytics.emailSendFailed({
+          error_message: data.error || 'Unknown error',
+          error_type: 'EmailSendError',
+        });
+
         showToast(data.error || "Failed to send email", "error");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Email send failed:", error);
+
+      analytics.emailSendFailed({
+        error_message: error?.message || 'Unknown error',
+        error_type: error?.name || 'EmailSendError',
+      });
+
       showToast("An unexpected error occurred while sending email.", "error");
     } finally {
-      setIsSendingEmail(false); // ✅ stop loading only after everything finishes
+      setIsSendingEmail(false);
     }
   };
 
@@ -546,14 +715,30 @@ const handleEmailSummary = async () => {
     createdAt: string;
     // Edge measurements (A→B, B→C, etc.)
     [edgeKey: string]: string | number | boolean | object | undefined;
+    backendEdgeMeasurements: Record<string, string>;
+    backendDiagonalMeasurements: Record<string, string>;
+    backendAnchorMeasurements: Record<string, string>;
+    originalUnit: 'metric' | 'imperial';
   }
 
 
-const handleAddToCart = async (orderData: OrderData): Promise<void> => {
+  const handleAddToCart = async (orderData: OrderData): Promise<void> => {
     console.log('Product being created. Add to cart');
     setShowLoadingOverlay(true);
     setLoadingStep({ text: 'Starting order process...', progress: 10 });
     setLoading(true);
+
+    // Check if this is a converted quote
+    const quoteId = getQuoteIdFromUrl();
+    let quoteData: any = null;
+
+    if (quoteReference && quoteId) {
+      try {
+        quoteData = await getQuoteById(quoteId);
+      } catch (error) {
+        console.error('Failed to load quote data for conversion tracking:', error);
+      }
+    }
 
     try {
       setLoadingStep({ text: 'Creating your custom product...', progress: 30 });
@@ -575,6 +760,32 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
       const cartDiagonalMeasurements = formatCartProperties(orderData.diagonalMeasurementsObj);
       const cartAnchorMeasurements = formatCartProperties(orderData.anchorPointMeasurements);
 
+      // Create backend-only dual measurement objects for Shopify admin
+      const backendEdgeMeasurements: Record<string, string> = {};
+      Object.keys(orderData.edgeMeasurements || {}).forEach(key => {
+        const measurement = config.measurements[key];
+        if (measurement && measurement > 0) {
+          backendEdgeMeasurements[key] = formatDualMeasurement(measurement, config.unit);
+        }
+      });
+
+      const backendDiagonalMeasurements: Record<string, string> = {};
+      const diagonalKeys = getDiagonalKeysForCorners(config.corners);
+      diagonalKeys.forEach(key => {
+        const measurement = config.measurements[key];
+        if (measurement && measurement > 0) {
+          backendDiagonalMeasurements[key] = formatDualMeasurement(measurement, config.unit);
+        }
+      });
+
+      const backendAnchorMeasurements: Record<string, string> = {};
+      config.fixingHeights.forEach((height, index) => {
+        const corner = String.fromCharCode(65 + index);
+        if (height && height > 0) {
+          backendAnchorMeasurements[corner] = formatDualMeasurement(height, config.unit);
+        }
+      });
+
       // Format arrays for cart display
       const formatArrayForCart = (array: any[], label: string) => {
         if (!array || !Array.isArray(array)) return {};
@@ -589,7 +800,9 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
 
       const cartFixingHeights = formatArrayForCart(orderData.fixingHeights, 'Fixing Height');
       const cartFixingTypes = formatArrayForCart(orderData.fixingTypes, 'Fixing Type');
-      const cartEyeOrientations = formatArrayForCart(orderData.eyeOrientations, 'Eye Orientation');
+      const cartEyeOrientations = orderData.fixingPointsInstalled === true
+        ? formatArrayForCart(orderData.eyeOrientations, 'Eye Orientation')
+        : {};
 
       const response = await fetch('/apps/shade_space/api/v1/public/product/create', {
         method: 'POST',
@@ -598,13 +811,18 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
         },
         body: JSON.stringify({
           ...orderData,
-          // Pass formatted properties for cart display
+          // Pass formatted properties for cart display (customer-facing, single unit)
           cartEdgeMeasurements,
           cartDiagonalMeasurements,
           cartAnchorMeasurements,
           cartFixingHeights,
           cartFixingTypes,
-          cartEyeOrientations
+          ...(orderData.fixingPointsInstalled === true && { cartEyeOrientations }),
+          // Pass dual measurements for backend/fulfillment (Shopify admin only)
+          backendEdgeMeasurements,
+          backendDiagonalMeasurements,
+          backendAnchorMeasurements,
+          originalUnit: config.unit
         }),
       });
 
@@ -660,9 +878,12 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
           metafieldProperties[key] = value;
         });
 
-        Object.entries(cartEyeOrientations).forEach(([key, value]) => {
-          metafieldProperties[key] = value;
-        });
+        // Only add eye orientation properties if fixing points are installed
+        if (orderData.fixingPointsInstalled === true) {
+          Object.entries(cartEyeOrientations).forEach(([key, value]) => {
+            metafieldProperties[key] = value;
+          });
+        }
 
         const gid = product?.variants?.edges?.[0]?.node?.id;
         if (gid) {
@@ -687,6 +908,29 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
 
           if (cartResponse.ok) {
             console.log('Added to cart');
+
+            // Track quote conversion if applicable
+            if (quoteData && quoteId) {
+              try {
+                const createdAt = new Date(quoteData.created_at);
+                const quoteAgeHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+                analytics.quoteConvertedToCart({
+                  quote_reference: quoteReference!,
+                  quote_age_hours: quoteAgeHours,
+                  time_from_save_to_cart_hours: quoteAgeHours,
+                  total_price: calculations.totalPrice,
+                  currency: config.currency,
+                  conversion_source: 'loaded_quote',
+                });
+
+                // Mark quote as converted
+                await markQuoteConverted(quoteId);
+              } catch (error) {
+                console.error('Failed to track quote conversion:', error);
+              }
+            }
+
             setLoadingStep({ text: 'Order complete! Redirecting...', progress: 100 });
             window.location.href = '/cart';
           } else {
@@ -767,10 +1011,12 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
         }
         return edgeCount === config.corners;
       case 5: // Heights & Anchor Points
+        // Check if fixing points installation status is selected
+        if (config.fixingPointsInstalled === undefined) return false;
+
         // Check if we have all required data for all corners
         if (!config.fixingHeights || config.fixingHeights.length !== config.corners) return false;
         if (!config.fixingTypes || config.fixingTypes.length !== config.corners) return false;
-        if (!config.eyeOrientations || config.eyeOrientations.length !== config.corners) return false;
 
         // Check if all heights are valid (not undefined, not null, and greater than 0)
         const allHeightsValid = config.fixingHeights.every(height =>
@@ -780,10 +1026,15 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
         // Check if all types are selected
         const allTypesValid = config.fixingTypes.every(type => type === 'post' || type === 'building');
 
-        // Check if all orientations are selected
-        const allOrientationsValid = config.eyeOrientations.every(orientation => orientation === 'horizontal' || orientation === 'vertical');
+        // If fixing points are installed, also check eye orientations
+        if (config.fixingPointsInstalled === true) {
+          if (!config.eyeOrientations || config.eyeOrientations.length !== config.corners) return false;
+          const allOrientationsValid = config.eyeOrientations.every(orientation => orientation === 'horizontal' || orientation === 'vertical');
+          return allHeightsValid && allTypesValid && allOrientationsValid;
+        }
 
-        return allHeightsValid && allTypesValid && allOrientationsValid;
+        // If fixing points are not installed, eye orientations are not required
+        return allHeightsValid && allTypesValid;
       case 6: // Review
         return true;
       default:
@@ -924,6 +1175,14 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
         }
         break;
       case 5: // Heights & Anchor Points
+        // PRIORITY CHECK: Installation status must be selected first
+        if (config.fixingPointsInstalled === undefined) {
+          errors.fixingPointsInstalled = 'Please answer whether your fixing points are already installed first';
+          // Don't validate dependent fields until installation status is selected
+          break;
+        }
+
+        // Only validate dependent fields after installation status is selected
         // Validate heights
         const heightValidation = validateHeights(config.fixingHeights, config.unit);
 
@@ -955,14 +1214,17 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
             }
           });
         }
-        if (!config.eyeOrientations || config.eyeOrientations.length !== config.corners) {
-          errors.eyeOrientations = 'All eye orientations must be selected';
-        } else {
-          config.eyeOrientations.forEach((orientation, index) => {
-            if (orientation !== 'horizontal' && orientation !== 'vertical') {
-              errors[`orientation_${index}`] = 'Please select eye orientation (horizontal or vertical)';
-            }
-          });
+        // Only validate eye orientations if fixing points are installed
+        if (config.fixingPointsInstalled === true) {
+          if (!config.eyeOrientations || config.eyeOrientations.length !== config.corners) {
+            errors.eyeOrientations = 'All eye orientations must be selected';
+          } else {
+            config.eyeOrientations.forEach((orientation, index) => {
+              if (orientation !== 'horizontal' && orientation !== 'vertical') {
+                errors[`orientation_${index}`] = 'Please select eye orientation (horizontal or vertical)';
+              }
+            });
+          }
         }
         break;
     }
@@ -1071,18 +1333,30 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
         }
         return edgeCount === config.corners ? `${edgeCount} edge measurements entered` : `${edgeCount}/${config.corners} edges measured`;
       case 5: // Heights & Anchor Points
+        if (config.fixingPointsInstalled === undefined) return 'Installation status not selected';
         if (!config.fixingHeights || config.fixingHeights.length !== config.corners) return 'Not configured';
         if (!config.fixingTypes || config.fixingTypes.length !== config.corners) return 'Not configured';
-        if (!config.eyeOrientations || config.eyeOrientations.length !== config.corners) return 'Not configured';
 
         const validHeights = config.fixingHeights.filter(h => h !== undefined && h !== null && h > 0).length;
         const validTypes = config.fixingTypes.filter(t => t === 'post' || t === 'building').length;
-        const validOrientations = config.eyeOrientations.filter(o => o === 'horizontal' || o === 'vertical').length;
 
-        if (validHeights === config.corners && validTypes === config.corners && validOrientations === config.corners) {
-          return `${config.corners} anchor points configured`;
+        // If fixing points are installed, check eye orientations
+        if (config.fixingPointsInstalled === true) {
+          if (!config.eyeOrientations || config.eyeOrientations.length !== config.corners) return 'Not configured';
+          const validOrientations = config.eyeOrientations.filter(o => o === 'horizontal' || o === 'vertical').length;
+
+          if (validHeights === config.corners && validTypes === config.corners && validOrientations === config.corners) {
+            return `${config.corners} anchor points configured`;
+          } else {
+            return `${Math.min(validHeights, validTypes, validOrientations)}/${config.corners} anchor points configured`;
+          }
         } else {
-          return `${Math.min(validHeights, validTypes, validOrientations)}/${config.corners} anchor points configured`;
+          // If fixing points are not installed, eye orientations are not required
+          if (validHeights === config.corners && validTypes === config.corners) {
+            return `${config.corners} anchor points configured`;
+          } else {
+            return `${Math.min(validHeights, validTypes)}/${config.corners} anchor points configured`;
+          }
         }
       case 6: // Review
         return 'Ready for purchase';
@@ -1143,220 +1417,286 @@ const handleAddToCart = async (orderData: OrderData): Promise<void> => {
     }
   ];
 
-  return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-8 py-8 pb-16">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="mb-4">
-          <a
-            href="https://shadespace.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block hover:opacity-80 transition-opacity duration-200"
-          >
-            <img
-              src="https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Logo-horizontal-color_3x_8d83ab71-75cc-4486-8cf3-b510cdb69aa7.png?v=1728339550"
-              alt="ShadeSpace Logo"
-              className="mx-auto h-12 sm:h-16 md:h-20 lg:h-24 w-auto max-w-full"
-            />
-          </a>
-        </div>
-        <p className="text-xl text-[#01312D]/70 max-w-2xl mx-auto font-extrabold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-          Design your perfect shade solution with our interactive configurator
-        </p>
+  // Check if quote is ready (has price)
+  const hasQuote = calculations.totalPrice > 0;
+
+  // Handle save quote
+  const handleSaveQuote = () => {
+    // Exit lock mode when user interacts
+    setIsBarLocked(false);
+    setIsNewQuote(false);
+    setShowSaveQuoteModal(true);
+  };
+
+  // Handle mobile continue button
+  const handleMobileContinue = () => {
+    if (openStep === 4 && hasQuote) {
+      // Exit lock mode when user interacts
+      setIsBarLocked(false);
+      setIsNewQuote(false);
+      nextStep(); // Move to next step
+    }
+  };
+
+  if (isLoadingQuote) {
+    return (
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-8 py-16 text-center">
+        <div className="animate-spin w-12 h-12 border-4 border-[#BFF102] border-t-[#307C31] rounded-full mx-auto mb-4"></div>
+        <p className="text-lg text-slate-700">Loading your saved quote...</p>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Accordion Steps */}
-        <div className={`space-y-2 min-h-0 ${openStep === 4 // Dimensions step
-          ? 'lg:col-span-2'
-          : openStep >= 5 // Review step
-            ? 'lg:col-span-3'
-            : 'lg:col-span-4'
-          }`}>
-          {steps.map((step, index) => {
-            const StepComponent = step.component;
-            const isCompleted = index < config.step;
-            const isCurrent = index === config.step;
-            const isOpen = openStep === index;
-            const canOpen = index <= config.step;
-            const selection = getStepSelection(index);
+  return (
+    <>
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-8 py-8 pb-16">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="mb-4">
+            <a
+              href="https://shadespace.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block hover:opacity-80 transition-opacity duration-200"
+            >
+              <img
+                src="https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Logo-horizontal-color_3x_8d83ab71-75cc-4486-8cf3-b510cdb69aa7.png?v=1728339550"
+                alt="ShadeSpace Logo"
+                className="mx-auto h-12 sm:h-16 md:h-20 lg:h-24 w-auto max-w-full"
+              />
+            </a>
+          </div>
+          <p className="text-xl text-[#01312D]/70 max-w-2xl mx-auto font-extrabold" style={{ fontFamily: 'Poppins, sans-serif' }}>
+            Design your perfect shade solution and get instant custom pricing with our interactive configurator
+          </p>
 
-            // On mobile, show current step, completed steps, and the next available step
-            if (isMobile && index > config.step) {
-              return null;
-            }
-
-            return (
-              <AccordionStep
-                key={index}
-                title={step.title}
-                subtitle={step.subtitle}
-                stepNumber={index + 1}
-                isCompleted={isCompleted}
-                isCurrent={isCurrent}
-                isOpen={isOpen}
-                canOpen={canOpen}
-                selection={selection}
-                onToggle={() => toggleStep(index)}
-              >
-                <StepComponent
-                  config={config}
-                  updateConfig={updateConfig}
-                  calculations={calculations}
-                  validationErrors={validationErrors}
-                  typoSuggestions={typoSuggestions}
-                  onNext={nextStep}
-                  onPrev={prevStep}
-                  setValidationErrors={setValidationErrors}
-                  setTypoSuggestions={setTypoSuggestions}
-                  dismissTypoSuggestion={dismissTypoSuggestion}
-                  setConfig={setConfig}
-                  setOpenStep={setOpenStep}
-                  // Pricing and order props for ReviewContent
-                  isGeneratingPDF={isGeneratingPDF}
-                  handleGeneratePDF={handleGeneratePDF}
-                  showEmailInput={showEmailInput}
-                  email={email}
-                  setEmail={setEmail}
-                  handleEmailSummary={handleEmailSummary}
-                  acknowledgments={acknowledgments}
-                  handleAcknowledgmentChange={handleAcknowledgmentChange}
-                  handleAddToCart={handleAddToCart}
-                  allDiagonalsEntered={allDiagonalsEntered}
-                  allAcknowledgmentsChecked={allAcknowledgmentsChecked}
-                  canAddToCart={canAddToCart}
-                  hasAllEdgeMeasurements={hasAllEdgeMeasurements}
-                  handleCancelEmailInput={handleCancelEmailInput}
-                  nextStepTitle={getNextStepTitle(index)}
-                  showBackButton={shouldShowBackButton(index)}
-                  isMobile={isMobile}
-                  setHighlightedMeasurement={setHighlightedMeasurement}
-                  highlightedMeasurement={highlightedMeasurement}
-                  canvasRef={canvasRef}
-                  ref={index === 6 ? reviewContentRef : undefined}
-                  loading={loading}
-                  setLoading={setLoading}
-                  setShowLoadingOverlay={setShowLoadingOverlay}
-                />
-              </AccordionStep>
-            );
-          })}
+          {/* Quote Reference Display */}
+          {quoteReference && (
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#BFF102]/20 border border-[#307C31]/30 rounded-full">
+              <svg className="w-5 h-5 text-[#307C31]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="text-sm font-semibold text-[#01312D]">
+                Quote: {quoteReference}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Sticky Diagram for Dimensions Step - Desktop Only */}
-        {openStep === 4 && !isMobile && (
-          <div className="hidden lg:block lg:col-span-2 lg:sticky lg:top-28 lg:self-start z-10">
-            <h4 className="text-lg font-semibold text-slate-900 mb-4">
-              Interactive Measurement Guide
-            </h4>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Accordion Steps */}
+          <div className={`space-y-2 min-h-0 ${openStep === 4 // Dimensions step
+            ? 'lg:col-span-2'
+            : openStep >= 5 // Review step
+              ? 'lg:col-span-3'
+              : 'lg:col-span-4'
+            }`}>
+            {steps.map((step, index) => {
+              const StepComponent = step.component;
+              const isCompleted = index < config.step;
+              const isCurrent = index === config.step;
+              const isOpen = openStep === index;
+              const canOpen = index <= config.step;
+              const selection = getStepSelection(index);
 
-            {/* Canvas Tip */}
-            <div className="p-3 bg-[#BFF102]/10 border border-[#307C31]/30 rounded-lg mb-4">
-              <p className="text-sm text-[#01312D]">
-                <strong>Tip:</strong> Drag the corners on the canvas to visualize your shape.
-                Enter measurements in the fields to the right to calculate pricing. All measurements are in {config.unit === 'imperial' ? 'inches' : 'millimeters'}.
-              </p>
-            </div>
+              // On mobile, show current step, completed steps, and the next available step
+              if (isMobile && index > config.step) {
+                return null;
+              }
 
-            <ShapeCanvas
-              config={config}
-              updateConfig={updateConfig}
-              readonly={false}
-              snapToGrid={true}
-              highlightedMeasurement={highlightedMeasurement}
-              isMobile={isMobile}
-            />
-          </div>
-        )}
-
-        {/* Desktop Pricing Summary - Sticky Sidebar (Dimensions & Review steps) */}
-        {(openStep >= 5) && (
-          <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-28 lg:self-start z-10 space-y-4">
-            <PriceSummaryDisplay
-              config={config}
-              calculations={calculations}
-            />
-
-            {/* Desktop PDF and Email Buttons */}
-            {calculations.totalPrice > 0 && (
-              <div className="space-y-3">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleGeneratePDFWithSVG(false)}
-                  disabled={isGeneratingPDF}
-                  className="w-full"
+              return (
+                <AccordionStep
+                  key={index}
+                  title={step.title}
+                  subtitle={step.subtitle}
+                  stepNumber={index + 1}
+                  isCompleted={isCompleted}
+                  isCurrent={isCurrent}
+                  isOpen={isOpen}
+                  canOpen={canOpen}
+                  selection={selection}
+                  onToggle={() => toggleStep(index)}
                 >
-                  {isGeneratingPDF ? 'Generating...' : 'Download PDF Quote'}
-                </Button>
+                  <StepComponent
+                    config={config}
+                    updateConfig={updateConfig}
+                    calculations={calculations}
+                    validationErrors={validationErrors}
+                    typoSuggestions={typoSuggestions}
+                    onNext={nextStep}
+                    onPrev={prevStep}
+                    setValidationErrors={setValidationErrors}
+                    setTypoSuggestions={setTypoSuggestions}
+                    dismissTypoSuggestion={dismissTypoSuggestion}
+                    setConfig={setConfig}
+                    setOpenStep={setOpenStep}
+                    // Pricing and order props for ReviewContent
+                    isGeneratingPDF={isGeneratingPDF}
+                    handleGeneratePDF={handleGeneratePDF}
+                    showEmailInput={showEmailInput}
+                    email={email}
+                    setEmail={setEmail}
+                    handleEmailSummary={handleEmailSummary}
+                    acknowledgments={acknowledgments}
+                    handleAcknowledgmentChange={handleAcknowledgmentChange}
+                    handleAddToCart={handleAddToCart}
+                    allDiagonalsEntered={allDiagonalsEntered}
+                    allAcknowledgmentsChecked={allAcknowledgmentsChecked}
+                    canAddToCart={canAddToCart}
+                    hasAllEdgeMeasurements={hasAllEdgeMeasurements}
+                    handleCancelEmailInput={handleCancelEmailInput}
+                    nextStepTitle={getNextStepTitle(index)}
+                    showBackButton={shouldShowBackButton(index)}
+                    isMobile={isMobile}
+                    setHighlightedMeasurement={setHighlightedMeasurement}
+                    highlightedMeasurement={highlightedMeasurement}
+                    canvasRef={canvasRef}
+                    ref={index === 6 ? reviewContentRef : undefined}
+                    loading={loading}
+                    setLoading={setLoading}
+                    setShowLoadingOverlay={setShowLoadingOverlay}
+                    onSaveQuote={handleSaveQuote}
+                    quoteReference={quoteReference}
+                  />
+                </AccordionStep>
+              );
+            })}
+          </div>
 
-                {!showEmailInput ? (
+          {/* Sticky Diagram for Dimensions Step - Desktop Only */}
+          {openStep === 4 && !isMobile && (
+            <div className="hidden lg:block lg:col-span-2 lg:sticky lg:top-28 lg:self-start z-10">
+              <h4 className="text-lg font-semibold text-slate-900 mb-4">
+                Interactive Measurement Guide
+              </h4>
+
+              {/* Canvas Tip */}
+              <div className="p-3 bg-[#BFF102]/10 border border-[#307C31]/30 rounded-lg mb-4">
+                <p className="text-sm text-[#01312D]">
+                  <strong>Tip:</strong> Drag the corners on the canvas to visualize your shape.
+                  Enter measurements in the fields to the right to calculate pricing. All measurements are in {config.unit === 'imperial' ? 'inches' : 'millimeters'}.
+                </p>
+              </div>
+
+              <ShapeCanvas
+                config={config}
+                updateConfig={updateConfig}
+                readonly={false}
+                snapToGrid={true}
+                highlightedMeasurement={highlightedMeasurement}
+                isMobile={isMobile}
+              />
+            </div>
+          )}
+
+          {/* Desktop Pricing Summary - Sticky Sidebar (Dimensions & Review steps) */}
+          {(openStep >= 5) && (
+            <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-28 lg:self-start z-10 space-y-4">
+              <PriceSummaryDisplay
+                config={config}
+                calculations={calculations}
+              />
+
+              {/* Desktop PDF and Email Buttons */}
+              {calculations.totalPrice > 0 && (
+                <div className="space-y-3">
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={handleEmailSummary}
+                    onClick={() => handleGeneratePDFWithSVG(false)}
+                    disabled={isGeneratingPDF}
                     className="w-full"
                   >
-                    Email Summary
+                    {isGeneratingPDF ? 'Generating...' : 'Download PDF Quote'}
                   </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address"
-                      className="w-full"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleEmailSummary}
-                        className="w-full flex items-center justify-center gap-2"
-                        disabled={isSendingEmail}
-                      >
-                        {isSendingEmail && (
-                          <svg
-                            className="animate-spin h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                            ></path>
-                          </svg>
-                        )}
-                        {isSendingEmail ? "Sending..." : "Send Email"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCancelEmailInput}
-                        className="w-full"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
+                  {!showEmailInput ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleEmailSummary}
+                      className="w-full"
+                    >
+                      Email Summary
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        className="w-full"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleEmailSummary}
+                          className="w-full flex items-center justify-center gap-2"
+                          disabled={isSendingEmail}
+                        >
+                          {isSendingEmail && (
+                            <svg
+                              className="animate-spin h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              ></path>
+                            </svg>
+                          )}
+                          {isSendingEmail ? "Sending..." : "Send Email"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelEmailInput}
+                          className="w-full"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+        <LoadingOverlay
+          isVisible={showLoadingOverlay}
+          currentStep={loadingStep.text}
+          progress={loadingStep.progress}
+        />
       </div>
 
-      <LoadingOverlay
-        isVisible={showLoadingOverlay}
-        currentStep={loadingStep.text}
-        progress={loadingStep.progress}
+      {/* Mobile Pricing Bar */}
+      <MobilePricingBar
+        totalPrice={calculations.totalPrice}
+        currency={config.currency}
+        isVisible={hasQuote && openStep === 4}
+        quoteReference={quoteReference || undefined}
+        onContinue={handleMobileContinue}
+        onSaveQuote={handleSaveQuote}
+        isLocked={isBarLocked}
+        isNewQuote={isNewQuote}
       />
-    </div>
+
+      {/* Save Quote Modal */}
+      <SaveQuoteModal
+        isOpen={showSaveQuoteModal}
+        onClose={() => setShowSaveQuoteModal(false)}
+        config={config}
+        calculations={calculations}
+      />
+    </>
   );
 }
