@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { Tooltip } from '../ui/Tooltip';
 import { AccordionItem } from '../ui/AccordionItem';
 import { CURRENCY_NAMES, CURRENCY_SYMBOLS } from '../../data/pricing';
+import { MeasurementOptionVisualizer } from '../MeasurementOptionVisualizer';
 
 // Define the mapping for hardware pack images
 const HARDWARE_PACK_IMAGES: { [key: number]: string } = {
@@ -82,12 +83,22 @@ export function CombinedMeasurementContent({ config, updateConfig, onNext, onPre
         </div>
       </div>
 
-      {/* Measurement Option Selection */}
+      {/* Measurement Option Selection with Interactive Visualizer */}
       <div className="mb-6 sm:mb-8">
         <h4 className="text-lg font-semibold text-slate-900 mb-4">
           How would you like your shade sail to be manufactured?
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <MeasurementOptionVisualizer
+          selectedOption={config.measurementOption}
+          corners={config.corners}
+          fabricColor={config.fabricColor}
+          onOptionChange={handleMeasurementOptionChange}
+          validationErrors={validationErrors}
+        />
+
+        {/* Original grid layout - keeping as fallback, hidden by default */}
+        <div className="hidden grid-cols-1 md:grid-cols-2 gap-4">
           <Card
             className={`p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-lg ${
               config.measurementOption === 'adjust'
@@ -166,7 +177,7 @@ export function CombinedMeasurementContent({ config, updateConfig, onNext, onPre
                                 <h5 className="font-semibold text-slate-800 mb-2 text-sm">Heads-up:</h5>
                                 <ul className="text-xs text-slate-600 space-y-1.5 ml-4 list-disc">
                                   <li>The finished sail will be slightly smaller than your measurements (to allow for stretch).</li>
-                                  <li>Tensioning Hardware is included. (Wall brackets or eyebolts can be added to cart separately if required).</li>
+                                  <li>Tensioning hardware is included. (Wall brackets or eyebolts can be added to cart separately if required).</li>
                                   <li>If measurement discrepancies arise, we'll contact you before manufacturing.</li>
                                   <li>Unresolvable discrepancies = full credit or refund.</li>
                                 </ul>
@@ -186,11 +197,11 @@ export function CombinedMeasurementContent({ config, updateConfig, onNext, onPre
                   </span>
                 </div>
                 <p className="text-sm text-slate-600 mt-1">
-                  Hardware Included
+                  Tensioning Hardware Included
                   <Tooltip
                     content={
                       <div>
-                        <h4 className="font-bold text-slate-900 mb-2">Hardware Pack Included</h4>
+                        <h4 className="font-bold text-slate-900 mb-2">Tensioning Hardware Pack Included</h4>
                         {config.corners > 0 && hardwarePackImageUrl && (
                           <img 
                             src={hardwarePackImageUrl} 
@@ -315,21 +326,15 @@ export function CombinedMeasurementContent({ config, updateConfig, onNext, onPre
                   </Tooltip>
                 </div>
                 <p className="text-sm text-slate-600 mt-1">
-                  Hardware Not Included
+                  Tensioning Hardware Not Included
                   <Tooltip
                     content={
                       <div>
-                        <h4 className="font-bold text-slate-900 mb-2">Hardware Not Included</h4>
+                        <h4 className="font-bold text-slate-900 mb-2">Tensioning Hardware Not Included</h4>
                         <p className="text-sm text-slate-600 mb-3">
-                          With this option, you'll receive only the shade sail fabric. All hardware (turnbuckles, shackles, eye bolts, etc.) must be sourced separately.
+                          With this option, you'll receive the shade sail with corner D-rings sewn in. Tensioning hardware (turnbuckles, shackles, eyebolts/eye plates etc.) must be sourced separately.
                         </p>
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                          <p className="text-sm text-slate-700 font-medium mb-2">
-                            Need hardware?
-                          </p>
-                          <p className="text-sm text-slate-600 mb-2">
-                            Visit our hardware section to purchase the components you need for installation.
-                          </p>
                           <a 
                             href="https://shadespace.com/pages/hardware" 
                             target="_blank" 
