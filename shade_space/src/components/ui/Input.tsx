@@ -52,6 +52,7 @@ export function Input({ label, error, errorKey, isSuccess = false, isSuggestedTy
           {...(error && errorKey ? { 'data-error': errorKey } : {})}
           onWheel={handleWheel}
           {...props}
+          id='custom-class'
         />
         {isSuccess && !error && !isSuggestedTypo && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
