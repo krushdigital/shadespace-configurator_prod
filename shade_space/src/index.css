@@ -286,3 +286,7 @@ html {
     animation: none;
   }
 }
+
+.border-slate-300{
+  border-color: rgb(203, 213, 225);
+}
