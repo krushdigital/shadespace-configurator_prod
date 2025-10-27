@@ -24,4 +24,4 @@ database.sqlite
 .shopify/*
 .shopify.lock
 
-./public/shadespace
+/public/shadespace

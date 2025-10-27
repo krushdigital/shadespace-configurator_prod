@@ -24,7 +24,8 @@ export const action = async ({ request }) => {
       email: receiver,
       quoteReference,
       quoteUrl,
-      expiresAt
+      expiresAt,
+      quoteName
     } = data;
 
     // Validate all required fields
@@ -111,6 +112,14 @@ export const action = async ({ request }) => {
                   <tr>
                     <td style="padding:0 30px 20px;">
                       <table cellpadding="15" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; background-color:#f8fafc; border:2px solid #BFF102; border-radius:8px;">
+                        ${quoteName ? `
+                        <tr>
+                          <td style="text-align:center; padding-bottom:0;">
+                            <div style="font-size:14px; color:#64748B; margin-bottom:4px;">Quote Name</div>
+                            <div style="font-size:16px; font-weight:600; color:#01312D;">${quoteName}</div>
+                          </td>
+                        </tr>
+                        ` : ''}
                         <tr>
                           <td style="text-align:center;">
                             <div style="font-size:16px; font-weight:bold; color:#01312D; margin-bottom:8px;">Quote Reference</div>
