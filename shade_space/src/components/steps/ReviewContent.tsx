@@ -185,6 +185,49 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
   // Only show diagonal input section for 4+ corners if diagonals were NOT initially provided
   const shouldShowDiagonalInputSection = config.corners >= 4 && !config.diagonalsInitiallyProvided;
 
+  // Convert technical geometry errors into user-friendly messages
+  const getUserFriendlyErrors = (errors: string[]): string[] => {
+    return errors.map(error => {
+      // Handle diagonal validation errors (they already contain user-friendly messages)
+      if (error.includes('Diagonal') && (error.includes('too long') || error.includes('too short'))) {
+        // Convert mm measurements to user's preferred unit
+        const diagonalMatch = error.match(/Diagonal ([A-Z]+) \((\d+)mm\) is (too long|too short)\. With your edge measurements, it (should be at least|cannot exceed) (\d+)mm/);
+
+        if (diagonalMatch) {
+          const [, diagonalName, currentValue, condition, phrase, suggestedValue] = diagonalMatch;
+          const currentFormatted = formatMeasurement(parseFloat(currentValue), config.unit);
+          const suggestedFormatted = formatMeasurement(parseFloat(suggestedValue), config.unit);
+
+          return `Diagonal ${diagonalName} (${currentFormatted}) is ${condition}. With your edge measurements, it ${phrase} ${suggestedFormatted}.`;
+        }
+
+        // Return the error as-is if pattern doesn't match (it's already user-friendly)
+        return error;
+      }
+
+      // Extract the measurements from the technical error message
+      // Format: "Triangle ABC: Triangle inequality violated: X + Y = Z ≤ W"
+      const match = error.match(/Triangle [A-Z]+: Triangle inequality violated: (\d+) \+ (\d+) = (\d+) ≤ (\d+)/);
+
+      if (match) {
+        const [, val1, val2, sum, val3] = match;
+        const measurement1 = formatMeasurement(parseFloat(val1), config.unit);
+        const measurement2 = formatMeasurement(parseFloat(val2), config.unit);
+        const measurement3 = formatMeasurement(parseFloat(val3), config.unit);
+
+        return `Some measurements don't add up correctly: ${measurement1} + ${measurement2} should be larger than ${measurement3}`;
+      }
+
+      // Fallback for other error formats
+      return "Some of your measurements may contain typos or inconsistencies";
+    });
+  };
+
+  const friendlyErrors = useMemo(() =>
+    getUserFriendlyErrors(geometryValidation.errors),
+    [geometryValidation.errors, config.unit]
+  );
+
   interface ConvertSvgToPngOptions {
     width?: number;
     height?: number;
@@ -616,8 +659,8 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
               </div>
             </Card>
 
-            {/* Geometric Validation Warning */}
-            {!geometryValidation.isValid && calculations.area === 0 && hasAllEdgeMeasurements && allDiagonalsEntered && (
+            {/* Invalid Triangle Warning - Show prominently when area is 0 for 3-corner shade */}
+            {config.corners === 3 && calculations.area === 0 && hasAllEdgeMeasurements && (
               <Card className="p-4 mb-4 border-2 border-red-500 bg-red-50">
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 mt-1">
@@ -626,24 +669,123 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-red-800 mb-2">
-                      Invalid Measurements Detected
+                    <h4 className="text-lg font-semibold text-red-900 mb-2">
+                      Invalid Triangle Measurements
                     </h4>
-                    <p className="text-sm text-red-700 mb-3">
-                      Your measurements create a geometrically impossible shape. This usually happens when measurements are entered incorrectly or contain typos. Please verify and correct the following issues:
+                    <p className="text-sm text-red-800 mb-3">
+                      The measurements you've entered cannot form a valid triangle. This is why the area shows 0.00 m².
                     </p>
-                    <div className="space-y-2">
-                      {geometryValidation.errors.map((error, index) => (
+                    <div className="p-3 bg-red-100 border border-red-300 rounded mb-3">
+                      <p className="text-sm text-red-900 font-medium mb-2">
+                        <strong>Triangle Rule:</strong> The sum of any two sides must be greater than the third side.
+                      </p>
+                      <div className="text-xs text-red-800 space-y-1 mt-2">
+                        {(() => {
+                          const AB = config.measurements['AB'] || 0;
+                          const BC = config.measurements['BC'] || 0;
+                          const CA = config.measurements['CA'] || 0;
+
+                          const checks = [
+                            { sides: 'B→C + C→A', sum: BC + CA, compare: 'A→B', value: AB, valid: BC + CA > AB },
+                            { sides: 'A→B + B→C', sum: AB + BC, compare: 'C→A', value: CA, valid: AB + BC > CA },
+                            { sides: 'A→B + C→A', sum: AB + CA, compare: 'B→C', value: BC, valid: AB + CA > BC }
+                          ];
+
+                          return checks.map((check, idx) => (
+                            <div key={idx} className={`flex items-start gap-2 ${!check.valid ? 'font-bold text-red-900' : ''}`}>
+                              <span>{check.valid ? '✓' : '✗'}</span>
+                              <span>
+                                {check.sides} ({formatMeasurement(check.sum, config.unit)}) {check.valid ? '>' : '≤'} {check.compare} ({formatMeasurement(check.value, config.unit)})
+                                {!check.valid && <span className="ml-2 text-red-700">← Problem here!</span>}
+                              </span>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded">
+                      <p className="text-sm text-yellow-900 mb-2">
+                        <strong>Common Causes:</strong>
+                      </p>
+                      <ul className="text-xs text-yellow-800 space-y-1 ml-4 list-disc">
+                        <li>Typo or missing digit (e.g., 1344mm instead of 13440mm)</li>
+                        <li>Mixed units (e.g., entering some measurements in cm instead of mm)</li>
+                        <li>Swapped or transposed numbers</li>
+                        <li>Incorrect tape measure reading</li>
+                      </ul>
+                    </div>
+
+                    <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-blue-900 font-semibold mb-1">
+                            What to do:
+                          </p>
+                          <p className="text-sm text-blue-800">
+                            Please go back and re-check your edge measurements. Make sure all measurements are in the same unit ({config.unit === 'metric' ? 'millimeters' : 'inches'}) and verify each measurement on-site before proceeding.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Geometric Validation Warning - Only show for significant issues */}
+            {!geometryValidation.isValid && calculations.area === 0 && hasAllEdgeMeasurements && allDiagonalsEntered && geometryValidation.errors.length > 0 && config.corners > 3 && (
+              <Card className="p-4 mb-4 border-2 border-blue-300 bg-blue-50">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-1">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-blue-900 mb-2">
+                      Measurement Review
+                    </h4>
+                    <p className="text-sm text-blue-800 mb-3">
+                      We've detected some measurements that may need a quick review. This could be due to measurement precision or a simple typo:
+                    </p>
+                    <div className="space-y-2 mb-4">
+                      {friendlyErrors.slice(0, 3).map((error, index) => (
                         <div key={index} className="flex items-start gap-2">
-                          <span className="text-red-600 font-bold">•</span>
-                          <p className="text-sm text-red-700 font-mono">{error}</p>
+                          <span className="text-blue-600 font-bold">•</span>
+                          <p className="text-sm text-blue-800">{error}</p>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded">
-                      <p className="text-sm text-red-800">
-                        <strong>Note:</strong> The triangle inequality theorem states that the sum of any two sides of a triangle must be greater than the third side. Please check your edge and diagonal measurements for accuracy.
+
+                    <div className="mt-3 p-3 bg-blue-100 border border-blue-200 rounded">
+                      <p className="text-sm text-blue-900">
+                        <strong>Tip:</strong> Double-check your measurements, especially diagonals. Small differences in measurement can trigger this notice.
                       </p>
+                    </div>
+
+                    {/* Reassurance Section */}
+                    <div className="mt-4 p-4 bg-emerald-50 border-2 border-emerald-300 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <svg className="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-emerald-900 font-semibold mb-1">
+                            You can still complete your order!
+                          </p>
+                          <p className="text-sm text-emerald-800">
+                            Our team will verify all measurements before manufacturing. We'll contact you if any adjustments are needed to ensure your shade sail fits perfectly.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -768,75 +910,77 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
               )}
             </div>
 
-            {/* Anchor Point Heights */}
-            <div>
-              {isMobile ? (
-                <AccordionItem
-                  trigger={
-                    <span className="flex items-center gap-2">
-                      <span>Anchor Point Heights</span>
-                      <span className="bg-[#01312D] text-white text-xs px-2 py-0.5 rounded-full">
-                        {config.corners}
+            {/* Anchor Point Heights - Only show for 'adjust' measurement option */}
+            {config.measurementOption === 'adjust' && config.fixingHeights && config.fixingHeights.length > 0 && (
+              <div>
+                {isMobile ? (
+                  <AccordionItem
+                    trigger={
+                      <span className="flex items-center gap-2">
+                        <span>Anchor Point Heights</span>
+                        <span className="bg-[#01312D] text-white text-xs px-2 py-0.5 rounded-full">
+                          {config.corners}
+                        </span>
                       </span>
-                    </span>
-                  }
-                  defaultOpen={false}
-                >
-                  <Card className="p-3 mt-2">
-                    <div className="space-y-2 text-xs">
-                      {config.fixingHeights.map((height, index) => {
-                        const corner = String.fromCharCode(65 + index);
-                        const type = config.fixingTypes?.[index] || 'post';
-                        const orientation = config.eyeOrientations?.[index];
+                    }
+                    defaultOpen={false}
+                  >
+                    <Card className="p-3 mt-2">
+                      <div className="space-y-2 text-xs">
+                        {config.fixingHeights.map((height, index) => {
+                          const corner = String.fromCharCode(65 + index);
+                          const type = config.fixingTypes?.[index] || 'post';
+                          const orientation = config.eyeOrientations?.[index];
 
-                        return (
-                          <div key={index} className="flex justify-between">
-                            <span className="text-slate-600">Point {corner}:</span>
-                            <div className="text-right">
-                              <div className="font-medium text-slate-900">
-                                {formatMeasurement(height, config.unit)}
-                                {' ('}{type}
-                                {config.fixingPointsInstalled === true && orientation && `, ${orientation} eye`}
-                                {')'}
+                          return (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-slate-600">Point {corner}:</span>
+                              <div className="text-right">
+                                <div className="font-medium text-slate-900">
+                                  {formatMeasurement(height, config.unit)}
+                                  {' ('}{type}
+                                  {config.fixingPointsInstalled === true && orientation && `, ${orientation} eye`}
+                                  {')'}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                </AccordionItem>
-              ) : (
-                <>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-3">
-                    Anchor Point Heights
-                  </h4>
-                  <Card className="p-4 mb-4">
-                    <div className="space-y-2 text-sm">
-                      {config.fixingHeights.map((height, index) => {
-                        const corner = String.fromCharCode(65 + index);
-                        const type = config.fixingTypes?.[index] || 'post';
-                        const orientation = config.eyeOrientations?.[index];
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  </AccordionItem>
+                ) : (
+                  <>
+                    <h4 className="text-lg font-semibold text-slate-900 mb-3">
+                      Anchor Point Heights
+                    </h4>
+                    <Card className="p-4 mb-4">
+                      <div className="space-y-2 text-sm">
+                        {config.fixingHeights.map((height, index) => {
+                          const corner = String.fromCharCode(65 + index);
+                          const type = config.fixingTypes?.[index] || 'post';
+                          const orientation = config.eyeOrientations?.[index];
 
-                        return (
-                          <div key={index} className="flex justify-between">
-                            <span className="text-slate-600">Anchor Point {corner}:</span>
-                            <div className="text-right">
-                              <div className="font-medium text-slate-900">
-                                {formatMeasurement(height, config.unit)}
-                                {' ('}{type}
-                                {config.fixingPointsInstalled === true && orientation && `, ${orientation} eye`}
-                                {')'}
+                          return (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-slate-600">Anchor Point {corner}:</span>
+                              <div className="text-right">
+                                <div className="font-medium text-slate-900">
+                                  {formatMeasurement(height, config.unit)}
+                                  {' ('}{type}
+                                  {config.fixingPointsInstalled === true && orientation && `, ${orientation} eye`}
+                                  {')'}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                </>
-              )}
-            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Sticky Sidebar - Diagram and Diagonal Inputs */}
@@ -1037,6 +1181,22 @@ export const ReviewContent = forwardRef<HTMLDivElement, ReviewContentProps>(({
               }>
                 I understand structural adequacy of fixing points is my responsibility.
               </span>
+            </div>
+          </div>
+
+          {/* Quality Assurance Note */}
+          <div className={`${isMobile ? 'mt-4 p-3' : 'mt-6 p-4'} bg-blue-50 border border-blue-200 rounded-lg`}>
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-blue-900 font-medium`}>
+                  <strong>Note:</strong> We will check all measurements thoroughly. If we have any concerns with your order measurements, one of our team members will be in touch to confirm, if needed.
+                </p>
+              </div>
             </div>
           </div>
 

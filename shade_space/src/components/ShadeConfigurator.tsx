@@ -999,6 +999,44 @@ export function ShadeConfigurator() {
     }));
   };
 
+  // Helper function to check if a step should be skipped
+  const shouldSkipStep = (step: number): boolean => {
+    // Skip Step 5 (Heights & Anchor Points) if measurementOption is 'exact'
+    if (step === 5 && config.measurementOption === 'exact') {
+      return true;
+    }
+    return false;
+  };
+
+  // Helper function to get the actual next step (accounting for skips)
+  const getActualNextStep = (currentStep: number): number => {
+    let nextStep = currentStep + 1;
+    while (nextStep <= 6 && shouldSkipStep(nextStep)) {
+      nextStep++;
+    }
+    return Math.min(nextStep, 6);
+  };
+
+  // Helper function to get the actual previous step (accounting for skips)
+  const getActualPrevStep = (currentStep: number): number => {
+    let prevStep = currentStep - 1;
+    while (prevStep >= 0 && shouldSkipStep(prevStep)) {
+      prevStep--;
+    }
+    return Math.max(prevStep, 0);
+  };
+
+  // Helper function to calculate the displayed step number (accounting for skipped steps)
+  const getDisplayedStepNumber = (stepIndex: number): number => {
+    let displayNumber = 1;
+    for (let i = 0; i < stepIndex; i++) {
+      if (!shouldSkipStep(i)) {
+        displayNumber++;
+      }
+    }
+    return displayNumber;
+  };
+
   const isStepComplete = (step: number): boolean => {
     switch (step) {
       case 0: // Fabric & Color
@@ -1025,6 +1063,9 @@ export function ShadeConfigurator() {
         }
         return edgeCount === config.corners;
       case 5: // Heights & Anchor Points
+        // If this step is skipped due to 'exact' measurement option, it's automatically complete
+        if (shouldSkipStep(5)) return true;
+
         // Check if fixing points installation status is selected
         if (config.fixingPointsInstalled === undefined) return false;
 
@@ -1057,7 +1098,9 @@ export function ShadeConfigurator() {
   };
 
   const smoothScrollToStep = (stepNumber: number) => {
-    const stepElement = document.getElementById(`step-${stepNumber + 1}`);
+    // stepNumber here is the step index (0-6), we need to get its displayed number
+    const displayedNumber = getDisplayedStepNumber(stepNumber);
+    const stepElement = document.getElementById(`step-${displayedNumber}`);
     if (!stepElement) return;
 
     const isMobileView = window.innerWidth < 1024;
@@ -1267,7 +1310,7 @@ export function ShadeConfigurator() {
     }
 
     // If no validation errors, proceed to next step
-    const nextStepIndex = Math.min(6, openStep + 1);
+    const nextStepIndex = getActualNextStep(openStep);
 
     // Auto-center shape when moving to next step
     const centeredPoints = centerShape(config.points);
@@ -1282,7 +1325,7 @@ export function ShadeConfigurator() {
   };
 
   const prevStep = () => {
-    const prevStepIndex = Math.max(0, openStep - 1);
+    const prevStepIndex = getActualPrevStep(openStep);
 
     // Auto-center shape when moving to previous step
     const centeredPoints = centerShape(config.points);
@@ -1379,18 +1422,28 @@ export function ShadeConfigurator() {
     }
   };
 
-  // Define step titles for navigation
-  const stepTitles = [
-    'Style',
-    'Fixing Points',
-    'Measurement Options',
-    'Dimensions',
-    'Heights & Anchor Points',
-    'Review & Purchase',
-    '' // No next step after review
-  ];
+  // Define step titles for navigation with dynamic skipping
+  const getNextStepTitle = (currentStep: number): string => {
+    const stepTitles = [
+      'Style',
+      'Fixing Points',
+      'Measurement Options',
+      'Dimensions',
+      'Heights & Anchor Points',
+      'Review & Purchase',
+      '' // No next step after review
+    ];
 
-  const getNextStepTitle = (currentStep: number) => stepTitles[currentStep] || '';
+    const actualNextStep = getActualNextStep(currentStep);
+
+    // Special case: If we're on step 4 (Dimensions) and step 5 will be skipped,
+    // the next step title should be "Review & Purchase"
+    if (currentStep === 4 && shouldSkipStep(5)) {
+      return 'Review & Purchase';
+    }
+
+    return stepTitles[actualNextStep] || '';
+  };
   const shouldShowBackButton = (currentStep: number) => currentStep > 0;
 
   const steps = [
@@ -1465,28 +1518,10 @@ export function ShadeConfigurator() {
     <>
       <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-8 py-8 pb-16">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="mb-4">
-            <a
-              href="https://shadespace.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block hover:opacity-80 transition-opacity duration-200"
-            >
-              <img
-                src="https://cdn.shopify.com/s/files/1/0778/8730/7969/files/Logo-horizontal-color_3x_8d83ab71-75cc-4486-8cf3-b510cdb69aa7.png?v=1728339550"
-                alt="ShadeSpace Logo"
-                className="mx-auto h-12 sm:h-16 md:h-20 lg:h-24 w-auto max-w-full"
-              />
-            </a>
-          </div>
-          <p className="text-xl text-[#01312D]/70 max-w-2xl mx-auto font-extrabold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-            Design your perfect shade solution and get instant custom pricing with our interactive configurator
-          </p>
-
+        <div className="text-center mb-6">
           {/* Quote Reference Display */}
           {quoteReference && (
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#BFF102]/20 border border-[#307C31]/30 rounded-full">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#BFF102]/20 border border-[#307C31]/30 rounded-full">
               <svg className="w-5 h-5 text-[#307C31]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -1501,7 +1536,9 @@ export function ShadeConfigurator() {
           {/* Accordion Steps */}
           <div className={`space-y-2 min-h-0 ${openStep === 4 // Dimensions step
             ? 'lg:col-span-2'
-            : openStep >= 5 // Review step
+            : (openStep >= 5 && !shouldSkipStep(5)) // Review step (when step 5 is not skipped)
+              ? 'lg:col-span-3'
+            : (openStep === 6 && shouldSkipStep(5)) // Review step (when step 5 is skipped)
               ? 'lg:col-span-3'
               : 'lg:col-span-4'
             }`}>
@@ -1513,6 +1550,11 @@ export function ShadeConfigurator() {
               const canOpen = index <= config.step;
               const selection = getStepSelection(index);
 
+              // Skip steps that should be hidden based on measurement option
+              if (shouldSkipStep(index)) {
+                return null;
+              }
+
               // On mobile, show current step, completed steps, and the next available step
               if (isMobile && index > config.step) {
                 return null;
@@ -1523,7 +1565,7 @@ export function ShadeConfigurator() {
                   key={index}
                   title={step.title}
                   subtitle={step.subtitle}
-                  stepNumber={index + 1}
+                  stepNumber={getDisplayedStepNumber(index)}
                   isCompleted={isCompleted}
                   isCurrent={isCurrent}
                   isOpen={isOpen}
@@ -1604,7 +1646,7 @@ export function ShadeConfigurator() {
           )}
 
           {/* Desktop Pricing Summary - Sticky Sidebar (Dimensions & Review steps) */}
-          {(openStep >= 5) && (
+          {(openStep >= 5 && (!shouldSkipStep(5) || openStep === 6)) && (
             <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-28 lg:self-start z-10">
               <PriceSummaryDisplay
                 config={config}

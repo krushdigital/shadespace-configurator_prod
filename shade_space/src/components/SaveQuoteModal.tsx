@@ -438,7 +438,6 @@ if (saveMethod === 'email' && email) {
                         onBlur={handleEmailBlur}
                         placeholder="your@email.com"
                         className="w-full"
-                        id='save_quote_email_field'
                       />
                       <p className="text-xs text-slate-500 mt-2">
                         We'll send you a link to access your quote later
