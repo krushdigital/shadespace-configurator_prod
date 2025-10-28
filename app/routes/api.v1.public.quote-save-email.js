@@ -178,7 +178,7 @@ export const action = async ({ request }) => {
                   <tr>
                     <td style="background-color:#f8fafc; padding:20px; text-align:center; font-size:13px; color:#64748B; border-top:1px solid #e2e8f0;">
                       Thank you for choosing <strong>ShadeSpace</strong> for your custom shade solution.<br/>
-                      Need help? Contact us at <a href="mailto:support@shadespace.com" style="color:#307C31;">support@shadespace.com</a>
+                      Need help? Contact us at <a href="mailto:sails@shadespace.com" style="color:#307C31;">sails@shadespace.com</a>
                     </td>
                   </tr>
                 </table>
