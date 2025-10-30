@@ -140,8 +140,8 @@ if (saveMethod === 'email' && email) {
         },
         body: JSON.stringify({
           email: email,
-          quoteName: result.quoteName,
           quoteReference: result.reference,
+          quoteName: result.quoteName,
           quoteUrl: quoteUrl,
           expiresAt: result.expiresAt
         }),
