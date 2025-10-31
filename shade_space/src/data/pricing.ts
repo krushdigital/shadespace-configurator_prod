@@ -228,19 +228,20 @@ export const EXCHANGE_RATES: { [key: string]: number } = {
   'AED': 2.19    // UAE Dirham
 };
 
-// Currency-specific markups (applied after base markup)
+// Currency-specific markups (consolidated from base markup + currency markup)
+// These values now include the former 40% base markup
 export const CURRENCY_MARKUPS: { [key: string]: number } = {
-  'NZD': 1.0,    // No additional markup for base currency
-  'USD': 1.15,   // 15% markup for USD
-  'AUD': 1.10,   // 10% markup for AUD
-  'GBP': 1.20,   // 20% markup for GBP
-  'EUR': 1.18,   // 18% markup for EUR
-  'CAD': 1.12,   // 12% markup for CAD
-  'AED': 1.50    // 50% markup for AED
+  'NZD': 1.09,   // 9% markup
+  'USD': 1.30,   // 30% markup 
+  'AUD': 1.09,   // 9% markup 
+  'GBP': 1.68,   // 68% markup 
+  'EUR': 1.652,  // 65.2% markup 
+  'CAD': 1.568,  // 56.8% markup 
+  'AED': 2.10    // 110% markup 
 };
 
-// Base pricing markup percentage
-export const BASE_PRICING_MARKUP = 1.40; // 40% base markup
+// Base pricing markup percentage (set to 0% - markups now in CURRENCY_MARKUPS)
+export const BASE_PRICING_MARKUP = 1.0; // 0% base markup
 
 // Currency symbols mapping
 export const CURRENCY_SYMBOLS: { [key: string]: string } = {
